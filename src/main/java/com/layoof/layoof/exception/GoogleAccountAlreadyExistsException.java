@@ -1,19 +1,25 @@
 package com.layoof.layoof.exception;
 
-public class GoogleAccountAlreadyExistsException extends RuntimeException {
+import org.springframework.http.HttpStatus;
 
-    private static final String DEFAULT_MESSAGE =
+/** Login por senha numa conta que so tem vinculo com o Google. */
+public class GoogleAccountAlreadyExistsException extends LayoofException {
+
+    private static final HttpStatus STATUS = HttpStatus.CONFLICT;
+    private static final String TITLE = "Conta vinculada ao Google";
+
+    public static final String USE_GOOGLE_BUTTON =
             "Esta conta foi criada com o Google. Entre usando o botao 'Entrar com Google'";
 
     public GoogleAccountAlreadyExistsException() {
-        super(DEFAULT_MESSAGE);
+        this(USE_GOOGLE_BUTTON);
     }
 
-    public GoogleAccountAlreadyExistsException(String message) {
-        super(message);
+    public GoogleAccountAlreadyExistsException(String detail) {
+        super(STATUS, TITLE, detail);
     }
 
-    public GoogleAccountAlreadyExistsException(String message, Throwable cause) {
-        super(message, cause);
+    public GoogleAccountAlreadyExistsException(String detail, Throwable cause) {
+        super(STATUS, TITLE, detail, cause);
     }
 }

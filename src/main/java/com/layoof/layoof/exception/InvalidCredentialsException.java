@@ -1,19 +1,29 @@
 package com.layoof.layoof.exception;
 
-public class InvalidCredentialsException extends RuntimeException {
+import org.springframework.http.HttpStatus;
 
-    private static final String DEFAULT_MESSAGE = "Email ou senha invalidos";
+/**
+ * Credenciais que nao conferem.
+ *
+ * <p>A mensagem e deliberadamente vaga e igual para e-mail inexistente e senha errada: distinguir
+ * os dois casos entrega ao atacante a lista de e-mails cadastrados.
+ */
+public class InvalidCredentialsException extends LayoofException {
 
+    private static final HttpStatus STATUS = HttpStatus.UNAUTHORIZED;
+    private static final String TITLE = "Credenciais invalidas";
+
+    public static final String INVALID_LOGIN = "Email ou senha invalidos";
 
     public InvalidCredentialsException() {
-        super(DEFAULT_MESSAGE);
+        this(INVALID_LOGIN);
     }
 
-    public InvalidCredentialsException(String message) {
-        super(message);
+    public InvalidCredentialsException(String detail) {
+        super(STATUS, TITLE, detail);
     }
 
-    public InvalidCredentialsException(String message, Throwable cause) {
-        super(message, cause);
+    public InvalidCredentialsException(String detail, Throwable cause) {
+        super(STATUS, TITLE, detail, cause);
     }
 }
