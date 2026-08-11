@@ -1,21 +1,17 @@
 package com.layoof.layoof.controller;
 
+import com.layoof.layoof.dto.request.ChangePasswordRequestDto;
 import com.layoof.layoof.dto.request.UpdateUserRequestDto;
+import com.layoof.layoof.dto.response.ResetPasswordResponseDto;
 import com.layoof.layoof.dto.response.UserResponseDto;
 import com.layoof.layoof.entity.User;
+import com.layoof.layoof.service.PasswordRecoveryService;
 import com.layoof.layoof.service.UserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.ResponseStatus;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import java.util.UUID;
 
@@ -25,6 +21,7 @@ import java.util.UUID;
 public class UserController {
 
     private final UserService userService;
+    private final PasswordRecoveryService passwordRecoveryService;
 
     @GetMapping("/me")
     public UserResponseDto me(@AuthenticationPrincipal User principal) {
@@ -32,8 +29,7 @@ public class UserController {
     }
 
     @PutMapping("/me")
-    public UserResponseDto updateMe(@AuthenticationPrincipal User principal,
-                                    @RequestBody @Valid UpdateUserRequestDto request) {
+    public UserResponseDto updateMe(@AuthenticationPrincipal User principal, @RequestBody @Valid UpdateUserRequestDto request) {
         return userService.updateProfile(principal.getUserId(), request);
     }
 
@@ -48,4 +44,8 @@ public class UserController {
         return userService.findById(userId);
     }
 
+    @PostMapping("/change-password")
+    public ResetPasswordResponseDto changePassword(@AuthenticationPrincipal User loggedInUser, @RequestBody @Valid ChangePasswordRequestDto request) {
+        return passwordRecoveryService.changePassword(loggedInUser, request);
+    }
 }

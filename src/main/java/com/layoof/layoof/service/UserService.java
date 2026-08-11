@@ -6,11 +6,11 @@ import com.layoof.layoof.entity.User;
 import com.layoof.layoof.exception.UserNotFoundException;
 import com.layoof.layoof.mapper.UserMapper;
 import com.layoof.layoof.repository.UserRepository;
+import com.layoof.layoof.util.EmailNormalizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -27,9 +27,8 @@ public class UserService {
 
     @Transactional(readOnly = true)
     public UserResponseDto findByEmail(String email) {
-        String normalized = email == null ? null : email.trim().toLowerCase(Locale.ROOT);
-        User user = userRepository.findByEmail(normalized)
-                .orElseThrow(() -> new UserNotFoundException("Nenhum usuario encontrado com o email: " + email));
+        User user = userRepository.findByEmail(EmailNormalizer.normalize(email))
+                .orElseThrow(() -> UserNotFoundException.byEmail(email));
         return userMapper.toResponse(user);
     }
 
@@ -56,6 +55,6 @@ public class UserService {
      */
     private User findEntityById(UUID userId) {
         return userRepository.findById(userId)
-                .orElseThrow(() -> new UserNotFoundException("Nenhum usuario encontrado com o id: " + userId));
+                .orElseThrow(() -> UserNotFoundException.byId(userId));
     }
 }

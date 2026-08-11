@@ -1,16 +1,19 @@
 package com.layoof.layoof.service;
 
+import com.layoof.layoof.dto.request.ChangePasswordRequestDto;
 import com.layoof.layoof.dto.request.ResetPasswordRequestDto;
 import com.layoof.layoof.dto.request.SendEmailRequestDto;
 import com.layoof.layoof.dto.request.ValidateCodeRequestDto;
 import com.layoof.layoof.dto.response.ResetPasswordResponseDto;
 import com.layoof.layoof.dto.response.SendEmailResponseDto;
 import com.layoof.layoof.entity.User;
+import com.layoof.layoof.enums.AuthProvider;
 import com.layoof.layoof.exception.InvalidVerificationCodeException;
 import com.layoof.layoof.notification.EmailFactory;
 import com.layoof.layoof.repository.UserRepository;
 import com.layoof.layoof.util.EmailNormalizer;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,12 +50,31 @@ public class PasswordRecoveryService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new InvalidVerificationCodeException(InvalidVerificationCodeException.INVALID_CODE));
 
+        if (user.getAuthProvider() != AuthProvider.LOCAL) {
+            throw new IllegalStateException("Usuários cadastrados via Google devem fazer login com a conta Google e não possuem senha para redefinir");
+        }
+
         verificationCodeService.consumeCode(request.code(), email);
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
         userRepository.save(user);
 
         return new ResetPasswordResponseDto("Senha atualizada com sucesso");
+    }
+
+    @Transactional
+    public ResetPasswordResponseDto changePassword(User user, ChangePasswordRequestDto request) {
+        if (user.getAuthProvider() != AuthProvider.LOCAL) {
+            throw new IllegalStateException("Contas do Google não possuem senha para alterar");
+        }
+        if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
+            throw new BadCredentialsException("A senha atual informada está incorreta");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.newPassword()));
+        userRepository.save(user);
+
+        return new ResetPasswordResponseDto("Senha alterada com sucesso");
     }
 
     private void sendCode(User user) {

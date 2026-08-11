@@ -1,6 +1,7 @@
 package com.layoof.layoof.repository;
 
 import com.layoof.layoof.entity.User;
+import com.layoof.layoof.enums.AuthProvider;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -15,4 +16,6 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     Optional<User> findByGoogleId(String googleId);
 
     boolean existsByEmail(String email);
+
+    Optional<User> findByEmailAndAuthProvider(String email, AuthProvider authProvider);
 }
