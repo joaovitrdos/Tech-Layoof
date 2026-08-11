@@ -8,6 +8,7 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -27,7 +28,7 @@ public class Layoof implements Serializable {
     @Column(name = "company")
     private String company;
 
-    @Column(name = "title")
+    @Column(name = "title", length = 512)
     private String title;
 
     @Column(name = "numbers_of_cuts")
@@ -39,16 +40,16 @@ public class Layoof implements Serializable {
     @Column(name = "country")
     private String country;
 
-    @Column(name = "summary")
+    @Column(name = "summary", columnDefinition = "TEXT")
     private String summary;
 
-    @Column(name = "content")
+    @Column(name = "content", columnDefinition = "TEXT")
     private String content;
 
-    @Column(name = "image_url")
+    @Column(name = "image_url", length = 1024)
     private String imageUrl;
 
-    @Column(name = "source_url")
+    @Column(name = "source_url", length = 1024, unique = true, nullable = false)
     private String sourceUrl;
 
     @Column(name = "published_at")
@@ -57,6 +58,9 @@ public class Layoof implements Serializable {
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "source_id")
     private Source source;
+
+    @OneToMany(mappedBy = "layoof", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Comment> comments;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -67,7 +71,7 @@ public class Layoof implements Serializable {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        updatedAt = LocalDateTime.now();
+        updatedAt = this.createdAt;
     }
 
     @PreUpdate
