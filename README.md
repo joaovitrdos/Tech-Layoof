@@ -13,6 +13,10 @@ registrado no banco para auditoria.
 
 ---
 
+## Arquitetura
+
+
+
 ## Tecnologias
 
 | Camada | Stack |
