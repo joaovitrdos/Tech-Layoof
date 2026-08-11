@@ -26,7 +26,8 @@ registrado no banco para auditoria.
 | Testes | **JUnit 5**, **Mockito**, **AssertJ**, `spring-security-test` |
 | Build | **Maven** (com wrapper) |
 | Infra local | **Docker Compose** (PostgreSQL) |
-| IA | **anthropic-java 2.52** — declarada para a etapa de extração dos dados |
+| Documentação | **Swagger** |
+| IA |  declarada para a etapa de extração dos dados |
 
 ---
 
