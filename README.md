@@ -3,13 +3,7 @@
 Backend do **Tech Layoof**, um agregador de notícias de demissões (*layoffs*) no
 setor de tecnologia. A proposta do produto é reunir num só lugar os anúncios de
 corte espalhados por portais de notícia, estruturar cada caso (empresa, número de
-desligados, local, data, fonte) e avisar quem se cadastrou.
-
-Este repositório contém a **API REST em Java/Spring Boot**, responsável pelas
-contas e pelo acesso à plataforma: cadastro com e-mail e senha, login com Google,
-autenticação stateless por JWT, recuperação de senha por código de verificação,
-gestão do próprio perfil e o envio dos e-mails transacionais — cada disparo fica
-registrado no banco para auditoria.
+desligados, local, data, fonte).
 
 ---
 
