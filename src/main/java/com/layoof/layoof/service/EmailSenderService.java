@@ -9,10 +9,10 @@ import com.layoof.layoof.repository.EmailRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.DataAccessException;
 import org.springframework.mail.MailException;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -36,15 +36,6 @@ public class EmailSenderService {
         this.emailRepository = emailRepository;
         this.from = from == null ? "" : from.trim();
         this.enabled = enabled;
-    }
-
-    @Async
-    public void sendAsync(EmailMessage emailMessage, User user) {
-        try {
-            send(emailMessage, user);
-        } catch (RuntimeException ex) {
-            log.error("Envio assincrono de email falhou", ex);
-        }
     }
 
     public void send(EmailMessage emailMessage, User user) {
@@ -71,16 +62,25 @@ public class EmailSenderService {
 
         try {
             mailSender.send(buildMessage(recipient, emailMessage));
-            emailEntity.setStatusEmail(StatusEmail.SENT); // 3. Se passou, status = SENT
-            log.info("Email '{}' enviado para {}", emailMessage.getSubject(), recipient);
 
         } catch (MailException ex) {
-            emailEntity.setStatusEmail(StatusEmail.ERROR); // 4. Se deu erro, status = ERROR
+            emailEntity.setStatusEmail(StatusEmail.ERROR);
+            registrar(emailEntity);
             log.error("Nao foi possivel enviar o email '{}' para {}", emailMessage.getSubject(), recipient, ex);
-            throw new EmailSendException(recipient, ex);
+            throw new EmailSendException("Falha ao enviar o email para: " + recipient, ex);
+        }
 
-        } finally {
+        emailEntity.setStatusEmail(StatusEmail.SENT);
+        registrar(emailEntity);
+        log.info("Email '{}' enviado para {}", emailMessage.getSubject(), recipient);
+    }
+
+    private void registrar(Email emailEntity) {
+        try {
             emailRepository.save(emailEntity);
+        } catch (DataAccessException ex) {
+            log.error("Email para {} terminou como {}, mas a auditoria nao foi gravada",
+                    emailEntity.getEmailTo(), emailEntity.getStatusEmail(), ex);
         }
     }
 
