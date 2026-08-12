@@ -22,8 +22,8 @@ public class Layoof implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id_layoof", unique = true)
-    private UUID id;
+    @Column(name = "layoof_id", unique = true)
+    private UUID layoofId;
 
     @Column(name = "company")
     private String company;

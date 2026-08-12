@@ -23,8 +23,8 @@ public class VerificationCode implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
-    @Column(name = "id_verification_code")
-    private UUID id;
+    @Column(name = "verification_code_id")
+    private UUID verificationCodeId;
 
     @Column(name = "code")
     private String code;

@@ -1,6 +1,5 @@
 package com.layoof.layoof.entity;
 
-import com.layoof.layoof.enums.SourceKind;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -24,27 +23,18 @@ public class Source implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "id_source", unique = true)
-    private UUID id;
+    @Column(name = "source_id", unique = true)
+    private UUID sourceId;
 
     @Column(name = "name", nullable = false)
     private String name;
 
-    /**
-     * URL do RSS/Atom. Aceita os marcadores {@code {termo}} e {@code {dias}}, resolvidos
-     * em tempo de busca — e o que transforma uma fonte agregadora em busca parametrizada.
-     * Unica porque e a chave de sincronizacao do catalogo padrao.
-     */
     @Column(name = "feed_url", length = 1024, nullable = false, unique = true)
     private String feedUrl;
 
     @Builder.Default
     @Column(name = "active", nullable = false)
     private boolean active = true;
-
-    @Enumerated(EnumType.STRING)
-    @Column(name = "kind", length = 32)
-    private SourceKind kind;
 
     /** "pt" ou "en". A IA precisa cobrir os dois para nao perder corte local nem multinacional. */
     @Column(name = "language", length = 8)

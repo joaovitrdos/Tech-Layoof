@@ -1,5 +1,6 @@
 package com.layoof.layoof.entity;
 
+import com.layoof.layoof.enums.ReactType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -9,39 +10,39 @@ import lombok.Setter;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.UUID;
 
-
 @Entity
-@Table(name = "TB_COMMENT")
+@Table(
+        name = "TB_REACT",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_react_comment_author",
+                columnNames = {"comment_id", "author_id"}))
 @Getter
 @Setter
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class Comment implements Serializable {
+public class React implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "comment_id", unique = true)
-    private UUID commentId;
+    @Column(name = "react_id", unique = true)
+    private UUID reactId;
 
-    @Column(name = "content", columnDefinition = "TEXT", nullable = false)
-    private String content;
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 16, nullable = false)
+    private ReactType type;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "layoof_id", nullable = false)
-    private Layoof layoof;
+    @JoinColumn(name = "comment_id", nullable = false)
+    private Comment comment;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "author_id", nullable = false)
     private User author;
-
-    @OneToMany(mappedBy = "comment", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<React> reacts;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;
@@ -64,4 +65,7 @@ public class Comment implements Serializable {
         return user != null && author != null && author.getUserId().equals(user.getUserId());
     }
 
+    public boolean hasType(ReactType other) {
+        return type == other;
+    }
 }

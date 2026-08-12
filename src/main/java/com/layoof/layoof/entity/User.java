@@ -51,9 +51,14 @@ public class User implements UserDetails, Serializable {
     @Column(name = "auth_provider", nullable = false, length = 20)
     private AuthProvider authProvider;
 
-    // mappedBy aponta para o NOME DO CAMPO no dono da relacao, que em Comment e "author".
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments;
+
+    @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<React> reacts;
+
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<VerificationCode> verificationCodes;
 
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

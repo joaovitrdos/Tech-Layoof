@@ -21,7 +21,7 @@ public class Email implements Serializable {
 
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    @Column(name = "email_id", unique = true)
+    @Column(name = "email_id")
     private UUID emailId;
 
     @Column(name = "user_id")
