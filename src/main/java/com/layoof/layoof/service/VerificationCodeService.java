@@ -56,10 +56,10 @@ public class VerificationCodeService {
     private VerificationCode findValidCode(String code, String email) {
         VerificationCode verification = verificationCodeRepository
                 .findByCodeAndUserEmailAndUsedFalse(code, EmailNormalizer.normalize(email))
-                .orElseThrow(() -> new InvalidVerificationCodeException(InvalidVerificationCodeException.INVALID_CODE));
+                .orElseThrow(() -> new InvalidVerificationCodeException("Codigo de verificacao invalido"));
 
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new InvalidVerificationCodeException(InvalidVerificationCodeException.EXPIRED_CODE);
+            throw new InvalidVerificationCodeException("Codigo de verificacao expirado");
         }
         return verification;
     }

@@ -36,20 +36,20 @@ public class GoogleTokenVerifier {
 
     public GoogleIdToken.Payload verify(String idToken) {
         if (!StringUtils.hasText(idToken)) {
-            throw new InvalidGoogleTokenException(InvalidGoogleTokenException.NOT_INFORMED);
+            throw new InvalidGoogleTokenException("Token do Google nao informado");
         }
         if (!configured) {
-            throw new InvalidGoogleTokenException(InvalidGoogleTokenException.NOT_VERIFIABLE);
+            throw new InvalidGoogleTokenException("Nao foi possivel validar o token do Google");
         }
 
         try {
             GoogleIdToken token = verifier.verify(idToken);
             if (token == null) {
-                throw new InvalidGoogleTokenException(InvalidGoogleTokenException.INVALID_OR_EXPIRED);
+                throw new InvalidGoogleTokenException("Token do Google invalido ou expirado");
             }
             return token.getPayload();
         } catch (GeneralSecurityException | IOException e) {
-            throw new InvalidGoogleTokenException(InvalidGoogleTokenException.NOT_VERIFIABLE, e);
+            throw new InvalidGoogleTokenException("Nao foi possivel validar o token do Google", e);
         }
     }
 }

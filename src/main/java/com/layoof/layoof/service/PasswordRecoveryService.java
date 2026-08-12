@@ -8,12 +8,15 @@ import com.layoof.layoof.dto.response.ResetPasswordResponseDto;
 import com.layoof.layoof.dto.response.SendEmailResponseDto;
 import com.layoof.layoof.entity.User;
 import com.layoof.layoof.enums.AuthProvider;
+import com.layoof.layoof.exception.GoogleAccountWithoutPasswordException;
+import com.layoof.layoof.exception.InvalidCredentialsException;
 import com.layoof.layoof.exception.InvalidVerificationCodeException;
 import com.layoof.layoof.notification.EmailFactory;
+import com.layoof.layoof.notification.EmailRequestedEvent;
 import com.layoof.layoof.repository.UserRepository;
 import com.layoof.layoof.util.EmailNormalizer;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,7 +28,7 @@ public class PasswordRecoveryService {
     private final UserRepository userRepository;
     private final VerificationCodeService verificationCodeService;
     private final EmailFactory emailFactory;
-    private final EmailSenderService emailSenderService;
+    private final ApplicationEventPublisher events;
     private final PasswordEncoder passwordEncoder;
 
     @Transactional
@@ -48,10 +51,11 @@ public class PasswordRecoveryService {
         String email = EmailNormalizer.normalize(request.email());
 
         User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> new InvalidVerificationCodeException(InvalidVerificationCodeException.INVALID_CODE));
+                .orElseThrow(() -> new InvalidVerificationCodeException("Codigo de verificacao invalido"));
 
         if (user.getAuthProvider() != AuthProvider.LOCAL) {
-            throw new IllegalStateException("Usuários cadastrados via Google devem fazer login com a conta Google e não possuem senha para redefinir");
+            throw new GoogleAccountWithoutPasswordException(
+                    "Contas cadastradas via Google nao possuem senha para redefinir. Entre com a conta Google");
         }
 
         verificationCodeService.consumeCode(request.code(), email);
@@ -65,10 +69,10 @@ public class PasswordRecoveryService {
     @Transactional
     public ResetPasswordResponseDto changePassword(User user, ChangePasswordRequestDto request) {
         if (user.getAuthProvider() != AuthProvider.LOCAL) {
-            throw new IllegalStateException("Contas do Google não possuem senha para alterar");
+            throw new GoogleAccountWithoutPasswordException("Contas do Google nao possuem senha para alterar");
         }
         if (!passwordEncoder.matches(request.currentPassword(), user.getPassword())) {
-            throw new BadCredentialsException("A senha atual informada está incorreta");
+            throw new InvalidCredentialsException("A senha atual informada esta incorreta");
         }
 
         user.setPassword(passwordEncoder.encode(request.newPassword()));
@@ -79,6 +83,7 @@ public class PasswordRecoveryService {
 
     private void sendCode(User user) {
         String code = verificationCodeService.createCode(user);
-        emailSenderService.sendAsync(emailFactory.createPasswordRecovery(user.getEmail(), code), user);
+        events.publishEvent(new EmailRequestedEvent(
+                emailFactory.createPasswordRecovery(user.getEmail(), code), user));
     }
 }
