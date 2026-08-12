@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -14,32 +15,16 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.exc.InvalidFormatException;
 
 import java.net.URI;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
+import java.util.stream.Collectors;
 
-/**
- * Traducao unica de excecao para resposta HTTP, no formato {@code ProblemDetail} (RFC 7807).
- *
- * <p>Eram treze handlers de quatro linhas quase identicas, um por excecao — e o preco disso
- * aparecia quando alguem esquecia de registrar a excecao nova: {@code EmailSendException} e
- * {@code InvalidCommentDataException} caiam no 500 generico, devolvendo "erro interno" para
- * erros que nao eram internos. Agora o status e o title moram na propria excecao
- * ({@link LayoofException}) e este arquivo nao precisa ser tocado quando surge uma regra nova.
- *
- * <p>Sobraram tres responsabilidades, e cada uma trata um tipo diferente de falha:
- *
- * <ul>
- *   <li><b>{@link LayoofException}</b> — erro previsto de negocio, com status proprio.</li>
- *   <li><b>{@code Exception}</b> — o que ninguem previu. Sempre 500, sempre com stack trace no
- *       log e <b>sem detalhe no corpo</b>: mensagem de excecao inesperada vaza nome de tabela,
- *       caminho de arquivo e versao de biblioteca.</li>
- *   <li><b>Erros do proprio Spring</b> (JSON malformado, parametro faltando, metodo errado) —
- *       padronizados em {@code handleExceptionInternal}, que e por onde todos eles passam.</li>
- * </ul>
- */
 @RestControllerAdvice
 public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
@@ -55,13 +40,8 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     private static final String TITLE_INVALID_REQUEST = "Requisicao invalida";
     private static final String DETAIL_INTERNAL = "Erro inesperado ao processar a requisicao";
     private static final String DETAIL_INVALID_DATA = "Dados invalidos na requisicao";
+    private static final String DETAIL_MALFORMED_BODY = "Corpo da requisicao ausente ou malformado";
 
-    /**
-     * Todo erro de negocio do projeto passa por aqui.
-     *
-     * <p>O nivel do log segue o dono do problema: 4xx e do cliente e vira WARN sem stack trace,
-     * porque senha errada nao e incidente. 5xx e nosso e vira ERROR com a excecao inteira.
-     */
     @ExceptionHandler(LayoofException.class)
     public ProblemDetail handleLayoofException(LayoofException ex) {
         if (ex.isClientError()) {
@@ -84,7 +64,6 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return problem;
     }
 
-    /** Bean Validation: devolve o mapa campo/mensagem, que e o que o formulario precisa. */
     @Override
     protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
                                                                   HttpHeaders headers,
@@ -104,11 +83,43 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         return ResponseEntity.badRequest().body(problem);
     }
 
-    /**
-     * Funil de todas as excecoes que o proprio Spring levanta — JSON malformado, parametro
-     * ausente, metodo nao suportado. Sem isto, essas respostas sairiam num formato e as nossas
-     * em outro, e o front precisaria saber ler os dois.
-     */
+    @Override
+    protected ResponseEntity<Object> handleHttpMessageNotReadable(HttpMessageNotReadableException ex,
+                                                                  HttpHeaders headers,
+                                                                  HttpStatusCode status,
+                                                                  WebRequest request) {
+
+        String detail = describeUnreadableBody(ex);
+        log.warn("Corpo da requisicao rejeitado: {}", detail);
+
+        ProblemDetail problem = buildProblem(HttpStatus.BAD_REQUEST, TITLE_INVALID_REQUEST, detail);
+        problem.setType(TYPE_INVALID_REQUEST);
+
+        return ResponseEntity.badRequest().body(problem);
+    }
+
+    private String describeUnreadableBody(HttpMessageNotReadableException ex) {
+        if (!(ex.getCause() instanceof InvalidFormatException invalidFormat)) {
+            return DETAIL_MALFORMED_BODY;
+        }
+
+        String field = invalidFormat.getPath().stream()
+                .map(JacksonException.Reference::getPropertyName)
+                .filter(Objects::nonNull)
+                .collect(Collectors.joining("."));
+
+        if (field.isBlank()) {
+            return DETAIL_MALFORMED_BODY;
+        }
+
+        Class<?> targetType = invalidFormat.getTargetType();
+        if (targetType == null || !targetType.isEnum()) {
+            return "Valor invalido para o campo '%s'".formatted(field);
+        }
+
+        return "Valor invalido para o campo '%s'. Valores aceitos: %s";
+    }
+
     @Override
     protected ResponseEntity<Object> handleExceptionInternal(Exception ex,
                                                              @Nullable Object body,
@@ -116,10 +127,22 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
                                                              HttpStatusCode statusCode,
                                                              WebRequest request) {
 
-        if (body instanceof ProblemDetail problem && problem.getProperties() == null) {
-            problem.setProperty(TIMESTAMP_FIELD, LocalDateTime.now());
+        if (body instanceof ProblemDetail problem) {
+            standardize(problem, statusCode);
         }
         return super.handleExceptionInternal(ex, body, headers, statusCode, request);
+    }
+
+    private void standardize(ProblemDetail problem, HttpStatusCode status) {
+        if (ProblemTypes.BLANK.equals(problem.getType())) {
+            problem.setType(ProblemTypes.typeFor(status));
+            problem.setTitle(ProblemTypes.titleFor(status));
+        }
+
+        Map<String, Object> properties = problem.getProperties();
+        if (properties == null || !properties.containsKey(TIMESTAMP_FIELD)) {
+            problem.setProperty(TIMESTAMP_FIELD, LocalDateTime.now());
+        }
     }
 
     private ProblemDetail buildProblem(HttpStatus status, String title, String detail) {
