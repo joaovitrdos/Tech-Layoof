@@ -1,10 +1,14 @@
 package com.layoof.layoof.controller;
 
 import com.layoof.layoof.dto.request.ChangePasswordRequestDto;
+import com.layoof.layoof.dto.request.LayoofRequestDto;
 import com.layoof.layoof.dto.request.UpdateUserRequestDto;
+import com.layoof.layoof.dto.response.LayoofResponseDto;
+import com.layoof.layoof.dto.response.PublicUserResponseDto;
 import com.layoof.layoof.dto.response.ResetPasswordResponseDto;
 import com.layoof.layoof.dto.response.UserResponseDto;
 import com.layoof.layoof.entity.User;
+import com.layoof.layoof.service.LayoofService;
 import com.layoof.layoof.service.PasswordRecoveryService;
 import com.layoof.layoof.service.UserService;
 import jakarta.validation.Valid;
@@ -13,6 +17,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -22,6 +27,7 @@ public class UserController {
 
     private final UserService userService;
     private final PasswordRecoveryService passwordRecoveryService;
+    private final LayoofService layoofService;
 
     @GetMapping("/me")
     public UserResponseDto me(@AuthenticationPrincipal User principal) {
@@ -39,13 +45,45 @@ public class UserController {
         userService.delete(principal.getUserId());
     }
 
+    @GetMapping("/me/layoofs")
+    public List<LayoofResponseDto> myLayoofs(@AuthenticationPrincipal User principal) {
+        return layoofService.listByAuthor(principal);
+    }
+
+    @PostMapping("/me/layoofs")
+    @ResponseStatus(HttpStatus.CREATED)
+    public LayoofResponseDto createLayoof(@AuthenticationPrincipal User principal,
+                                          @RequestBody @Valid LayoofRequestDto request) {
+
+        return layoofService.create(request, principal);
+    }
+
+    @PutMapping("/me/layoofs/{layoofId}")
+    public LayoofResponseDto updateLayoof(@AuthenticationPrincipal User principal,
+                                          @PathVariable UUID layoofId,
+                                          @RequestBody @Valid LayoofRequestDto request) {
+
+        return layoofService.update(layoofId, request, principal);
+    }
+
+    @DeleteMapping("/me/layoofs/{layoofId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void deleteLayoof(@AuthenticationPrincipal User principal, @PathVariable UUID layoofId) {
+        layoofService.delete(layoofId, principal);
+    }
+
     @GetMapping("/{userId}")
-    public UserResponseDto findById(@PathVariable UUID userId) {
-        return userService.findById(userId);
+    public PublicUserResponseDto findById(@PathVariable UUID userId) {
+        return userService.findPublicById(userId);
     }
 
     @PostMapping("/change-password")
     public ResetPasswordResponseDto changePassword(@AuthenticationPrincipal User loggedInUser, @RequestBody @Valid ChangePasswordRequestDto request) {
         return passwordRecoveryService.changePassword(loggedInUser, request);
+    }
+
+    @GetMapping("/count")
+    public long count() {
+        return userService.count();
     }
 }

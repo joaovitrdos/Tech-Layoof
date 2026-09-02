@@ -36,6 +36,7 @@ public class CommentController {
     }
 
     @PutMapping("/{commentId}")
+    @ResponseStatus(HttpStatus.OK)
     public CommentReponseDto update(@PathVariable UUID commentId,
                                     @RequestBody @Valid UpdateCommentRequestDto request,
                                     @AuthenticationPrincipal User principal) {
