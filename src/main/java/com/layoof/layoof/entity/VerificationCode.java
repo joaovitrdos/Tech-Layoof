@@ -27,7 +27,7 @@ public class VerificationCode implements Serializable {
     private UUID verificationCodeId;
 
     @Column(name = "code")
-    private String code;
+    private String codeHash;
 
     @Column(name = "expires_at")
     private LocalDateTime expiresAt;

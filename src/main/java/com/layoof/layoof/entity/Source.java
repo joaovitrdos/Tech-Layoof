@@ -1,5 +1,6 @@
 package com.layoof.layoof.entity;
 
+import com.layoof.layoof.enums.SourceType;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -26,33 +27,33 @@ public class Source implements Serializable {
     @Column(name = "source_id", unique = true)
     private UUID sourceId;
 
-    @Column(name = "name", nullable = false)
+    @Column(name = "name", columnDefinition = "TEXT", nullable = false)
     private String name;
 
-    @Column(name = "feed_url", length = 1024, nullable = false, unique = true)
+    @Column(name = "feed_url", columnDefinition = "TEXT", nullable = false, unique = true)
     private String feedUrl;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "type", length = 16, nullable = false)
+    private SourceType type;
 
     @Builder.Default
     @Column(name = "active", nullable = false)
     private boolean active = true;
 
-    /** "pt" ou "en". A IA precisa cobrir os dois para nao perder corte local nem multinacional. */
-    @Column(name = "language", length = 8)
+    @Column(name = "language", columnDefinition = "TEXT")
     private String language;
 
-    /** "BR", "US" ou "GLOBAL". */
-    @Column(name = "region", length = 16)
+    @Column(name = "region", columnDefinition = "TEXT")
     private String region;
 
-    /** O que a IA precisa saber para decidir se vale consultar esta fonte. */
-    @Column(name = "description", length = 512)
+    @Column(name = "description", columnDefinition = "TEXT")
     private String description;
 
     @Column(name = "last_fetched_at")
     private LocalDateTime lastFetchedAt;
 
-    /** Ultimo erro de coleta. E a primeira coisa que o suporte olha quando uma fonte seca. */
-    @Column(name = "last_error", length = 512)
+    @Column(name = "last_error", columnDefinition = "TEXT")
     private String lastError;
 
     @Column(name = "created_at")

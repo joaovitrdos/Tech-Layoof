@@ -1,30 +1,41 @@
 package com.layoof.layoof.repository;
 
 import com.layoof.layoof.entity.Layoof;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
+import com.layoof.layoof.entity.User;
+import com.layoof.layoof.enums.LayoofStatus;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
-import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface LayoofRepository extends JpaRepository<Layoof, UUID> {
 
-    /** Deduplicacao por artigo. Consultado antes de qualquer chamada de IA, para nao gastar token. */
     boolean existsBySourceUrl(String sourceUrl);
 
-    Page<Layoof> findAllByOrderByPublishedAtDesc(Pageable pageable);
+    boolean existsBySourceUrlAndLayoofIdNot(String sourceUrl, UUID layoofId);
 
-    /**
-     * Deduplicacao semantica: a mesma demissao sai em dezenas de veiculos com URLs diferentes.
-     * Sem esta checagem a home mostra oito vezes o mesmo corte da Amazon.
-     */
-    List<Layoof> findByCompanyIgnoreCaseAndPublishedAtBetween(String company,
-                                                              LocalDateTime inicio,
-                                                              LocalDateTime fim);
+    boolean existsByTitleFingerprint(String titleFingerprint);
 
-    boolean existsByCompanyIgnoreCaseAndPublishedAtBetween(String company,
-                                                           LocalDateTime inicio,
-                                                           LocalDateTime fim);
+    @EntityGraph(attributePaths = {"source", "author"})
+    Optional<Layoof> findWithSourceAndAuthorByLayoofId(UUID layoofId);
+
+    @EntityGraph(attributePaths = {"source", "author"})
+    List<Layoof> findAllByOrderByPublishedAtDesc();
+
+    @EntityGraph(attributePaths = {"source", "author"})
+    List<Layoof> findByStatusOrderByPublishedAtDesc(LayoofStatus status);
+
+    @EntityGraph(attributePaths = {"source", "author"})
+    List<Layoof> findByAuthorUserIdOrderByCreatedAtDesc(UUID userId);
+
+    @Modifying
+    @Query("UPDATE Layoof l SET l.author = null WHERE l.author = :author")
+    void detachAuthor(@Param("author") User author);
+
+    long countByStatus(LayoofStatus status);
 }

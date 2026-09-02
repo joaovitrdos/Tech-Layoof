@@ -69,7 +69,7 @@ public class User implements UserDetails, Serializable {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
-        updatedAt = createdAt;
+        updatedAt = this.createdAt;
     }
 
     @PreUpdate
