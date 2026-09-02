@@ -1,5 +1,6 @@
 package com.layoof.layoof.mapper;
 
+import com.layoof.layoof.dto.response.PublicUserResponseDto;
 import com.layoof.layoof.dto.response.RegisterResponseDto;
 import com.layoof.layoof.dto.response.UserResponseDto;
 import com.layoof.layoof.entity.User;
@@ -14,6 +15,8 @@ public interface UserMapper {
     UserResponseDto toResponse(User user);
 
     RegisterResponseDto toRegisterResponse(User user);
+
+    PublicUserResponseDto toPublicResponse(User user);
 
     List<UserResponseDto> toResponseList(List<User> users);
 }
