@@ -17,9 +17,11 @@ import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.exc.InvalidFormatException;
+import tools.jackson.databind.exc.UnrecognizedPropertyException;
 
 import java.net.URI;
 import java.time.LocalDateTime;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -99,6 +101,11 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
     }
 
     private String describeUnreadableBody(HttpMessageNotReadableException ex) {
+        if (ex.getCause() instanceof UnrecognizedPropertyException unrecognized) {
+            return "Campo desconhecido no corpo: '%s'. Campos aceitos: %s"
+                    .formatted(unrecognized.getPropertyName(), knownProperties(unrecognized));
+        }
+
         if (!(ex.getCause() instanceof InvalidFormatException invalidFormat)) {
             return DETAIL_MALFORMED_BODY;
         }
@@ -117,7 +124,21 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
             return "Valor invalido para o campo '%s'".formatted(field);
         }
 
-        return "Valor invalido para o campo '%s'. Valores aceitos: %s";
+        return "Valor invalido para o campo '%s'. Valores aceitos: %s"
+                .formatted(field, acceptedValues(targetType));
+    }
+
+    private String knownProperties(UnrecognizedPropertyException ex) {
+        return ex.getKnownPropertyIds().stream()
+                .map(String::valueOf)
+                .sorted()
+                .collect(Collectors.joining(", "));
+    }
+
+    private String acceptedValues(Class<?> enumType) {
+        return Arrays.stream(enumType.getEnumConstants())
+                .map(String::valueOf)
+                .collect(Collectors.joining(", "));
     }
 
     @Override

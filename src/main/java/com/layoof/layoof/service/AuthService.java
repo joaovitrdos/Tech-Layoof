@@ -13,16 +13,22 @@ import com.layoof.layoof.exception.GoogleAccountAlreadyExistsException;
 import com.layoof.layoof.exception.InvalidCredentialsException;
 import com.layoof.layoof.exception.InvalidGoogleTokenException;
 import com.layoof.layoof.exception.InvalidRegistrationDataException;
+import com.layoof.layoof.infra.security.LoginAttemptGuard;
 import com.layoof.layoof.infra.security.TokenService;
 import com.layoof.layoof.mapper.UserMapper;
 import com.layoof.layoof.notification.EmailFactory;
+import com.layoof.layoof.notification.EmailRequestedEvent;
 import com.layoof.layoof.repository.UserRepository;
 import com.layoof.layoof.util.EmailNormalizer;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -32,9 +38,18 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final GoogleTokenVerifier googleTokenVerifier;
     private final EmailFactory emailFactory;
-    private final EmailSenderService emailSenderService;
+    private final ApplicationEventPublisher events;
     private final UserMapper userMapper;
     private final TokenService tokenService;
+    private final LoginAttemptGuard loginAttemptGuard;
+    private final SessionService sessionService;
+
+    private String decoyHash;
+
+    @PostConstruct
+    void prepareDecoyHash() {
+        decoyHash = passwordEncoder.encode(UUID.randomUUID().toString());
+    }
 
     @Transactional
     public RegisterResponseDto register(RegisterRequestDto request) {
@@ -42,7 +57,7 @@ public class AuthService {
 
         String email = normalizeEmail(request.email());
         if (userRepository.existsByEmail(email)) {
-            throw new EmailAlreadyInUseException(email);
+            throw new EmailAlreadyInUseException("Ja existe um usuario cadastrado com o email: " + email);
         }
 
         User user = User.builder()
@@ -53,7 +68,8 @@ public class AuthService {
                 .build();
 
         User saved = persistNewUser(user, email);
-        emailSenderService.sendAsync(emailFactory.createWelcomeEmail(saved.getEmail(), saved.getName()), saved);
+        events.publishEvent(new EmailRequestedEvent(
+                emailFactory.createWelcomeEmail(saved.getEmail(), saved.getName()), saved));
 
         return userMapper.toRegisterResponse(saved);
     }
@@ -62,34 +78,51 @@ public class AuthService {
         try {
             return userRepository.saveAndFlush(user);
         } catch (DataIntegrityViolationException ex) {
-            throw new EmailAlreadyInUseException(email, ex);
+            throw new EmailAlreadyInUseException("Ja existe um usuario cadastrado com o email: " + email, ex);
         }
     }
 
     private void validateRegister(RegisterRequestDto request) {
         if (request.name() == null || request.name().isBlank()) {
-            throw new InvalidRegistrationDataException(InvalidRegistrationDataException.MISSING_NAME);
+            throw new InvalidRegistrationDataException("O nome e obrigatorio");
         }
         if (request.email() == null || request.email().isBlank()) {
-            throw new InvalidRegistrationDataException(InvalidRegistrationDataException.MISSING_EMAIL);
+            throw new InvalidRegistrationDataException("O email e obrigatorio");
         }
         if (request.password() == null || request.password().isBlank()) {
-            throw new InvalidRegistrationDataException(InvalidRegistrationDataException.MISSING_PASSWORD);
+            throw new InvalidRegistrationDataException("A senha e obrigatoria");
         }
     }
 
-    @Transactional(readOnly = true)
+    @Transactional
     public AuthResponseDto login(LoginRequestDto request) {
-        User user = userRepository.findByEmail(normalizeEmail(request.email()))
-                .orElseThrow(InvalidCredentialsException::new);
+        String email = normalizeEmail(request.email());
+        loginAttemptGuard.assertNotLocked(email);
 
+        User user = userRepository.findByEmail(email).orElse(null);
+        if (user == null) {
+            burnPasswordComparison(request.password());
+            throw failedAttempt(email);
+        }
         if (!user.hasLocalPassword()) {
-            throw new GoogleAccountAlreadyExistsException();
+            throw new GoogleAccountAlreadyExistsException(
+                    "Esta conta foi criada com o Google. Entre usando o botao 'Entrar com Google'");
         }
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw new InvalidCredentialsException();
+            throw failedAttempt(email);
         }
+
+        loginAttemptGuard.recordSuccess(email);
         return issueToken(user);
+    }
+
+    private InvalidCredentialsException failedAttempt(String email) {
+        loginAttemptGuard.recordFailure(email);
+        return new InvalidCredentialsException("Email ou senha invalidos");
+    }
+
+    private void burnPasswordComparison(String rawPassword) {
+        passwordEncoder.matches(rawPassword, decoyHash);
     }
 
     @Transactional
@@ -97,11 +130,14 @@ public class AuthService {
         return issueToken(resolveGoogleUser(request));
     }
 
+
     private User resolveGoogleUser(GoogleAuthRequestDto request) {
         GoogleIdToken.Payload payload = googleTokenVerifier.verify(request.idToken());
 
-        String googleId = requiredClaim(payload.getSubject(), InvalidGoogleTokenException.MISSING_SUBJECT);
-        String email = normalizeEmail(requiredClaim(payload.getEmail(), InvalidGoogleTokenException.MISSING_EMAIL));
+        String googleId = requiredClaim(payload.getSubject(),
+                "O token do Google nao contem o identificador do usuario");
+        String email = normalizeEmail(requiredClaim(payload.getEmail(),
+                "O token do Google nao contem um e-mail"));
         requireVerifiedEmail(payload);
         String name = optionalClaim(payload, "name");
         String picture = optionalClaim(payload, "picture");
@@ -115,14 +151,23 @@ public class AuthService {
 
     private void requireVerifiedEmail(GoogleIdToken.Payload payload) {
         if (!Boolean.TRUE.equals(payload.getEmailVerified())) {
-            throw new InvalidGoogleTokenException(InvalidGoogleTokenException.EMAIL_NOT_VERIFIED);
+            throw new InvalidGoogleTokenException("O e-mail da conta Google nao foi verificado pelo Google");
         }
     }
 
     private AuthResponseDto issueToken(User user) {
         return AuthResponseDto.bearer(
-                tokenService.generateToken(user),
+                tokenService.generateToken(user, sessionService.open(user)),
                 userMapper.toResponse(user));
+    }
+
+    @Transactional
+    public void logout(String authorizationHeader) {
+        UUID sessionId = tokenService.sessionIdFromHeader(authorizationHeader);
+
+        if (sessionId != null) {
+            sessionService.revoke(sessionId);
+        }
     }
 
     private User createFromGoogle(String googleId, String email, String name, String picture) {

@@ -5,6 +5,7 @@ import com.layoof.layoof.entity.VerificationCode;
 import com.layoof.layoof.exception.InvalidVerificationCodeException;
 import com.layoof.layoof.repository.VerificationCodeRepository;
 import com.layoof.layoof.util.EmailNormalizer;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -20,25 +21,32 @@ public class VerificationCodeService {
 
     private static final int CODE_BOUND = 1_000_000;
     private static final String CODE_FORMAT = "%06d";
+    private static final String INVALID = "Codigo de verificacao invalido";
+    private static final String EXPIRED = "Codigo de verificacao expirado";
 
     private final VerificationCodeRepository verificationCodeRepository;
+    private final PasswordEncoder passwordEncoder;
     private final SecureRandom random = new SecureRandom();
 
-    public VerificationCodeService(VerificationCodeRepository verificationCodeRepository) {
+    public VerificationCodeService(VerificationCodeRepository verificationCodeRepository,
+                                   PasswordEncoder passwordEncoder) {
         this.verificationCodeRepository = verificationCodeRepository;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @Transactional
     public String createCode(User user) {
         invalidatePendingCodes(user.getEmail());
 
+        String code = generateCode();
         VerificationCode verification = VerificationCode.builder()
                 .user(user)
-                .code(generateCode())
+                .codeHash(passwordEncoder.encode(code))
                 .expiresAt(LocalDateTime.now().plus(CODE_TTL))
                 .build();
 
-        return verificationCodeRepository.save(verification).getCode();
+        verificationCodeRepository.save(verification);
+        return code;
     }
 
     @Transactional(readOnly = true)
@@ -55,13 +63,21 @@ public class VerificationCodeService {
 
     private VerificationCode findValidCode(String code, String email) {
         VerificationCode verification = verificationCodeRepository
-                .findByCodeAndUserEmailAndUsedFalse(code, EmailNormalizer.normalize(email))
-                .orElseThrow(() -> new InvalidVerificationCodeException("Codigo de verificacao invalido"));
+                .findAllByUserEmailAndUsedFalse(EmailNormalizer.normalize(email)).stream()
+                .filter(candidate -> matches(code, candidate))
+                .findFirst()
+                .orElseThrow(() -> new InvalidVerificationCodeException(INVALID));
 
         if (verification.getExpiresAt().isBefore(LocalDateTime.now())) {
-            throw new InvalidVerificationCodeException("Codigo de verificacao expirado");
+            throw new InvalidVerificationCodeException(EXPIRED);
         }
         return verification;
+    }
+
+    private boolean matches(String code, VerificationCode candidate) {
+        return code != null
+                && candidate.getCodeHash() != null
+                && passwordEncoder.matches(code, candidate.getCodeHash());
     }
 
     private void invalidatePendingCodes(String email) {

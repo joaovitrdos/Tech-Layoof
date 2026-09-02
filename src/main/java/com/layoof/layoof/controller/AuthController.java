@@ -14,9 +14,11 @@ import com.layoof.layoof.service.AuthService;
 import com.layoof.layoof.service.PasswordRecoveryService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,6 +45,12 @@ public class AuthController {
     @PostMapping("/google")
     public AuthResponseDto loginWithGoogle(@RequestBody @Valid GoogleAuthRequestDto request) {
         return authService.loginWithGoogle(request);
+    }
+
+    @PostMapping("/logout")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void logout(@RequestHeader(HttpHeaders.AUTHORIZATION) String authorization) {
+        authService.logout(authorization);
     }
 
     @PostMapping("/password/forgot")
