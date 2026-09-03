@@ -13,14 +13,14 @@ import com.layoof.layoof.entity.Source;
 import com.layoof.layoof.entity.User;
 import com.layoof.layoof.enums.LayoofConfidence;
 import com.layoof.layoof.enums.LayoofStatus;
-import com.layoof.layoof.exception.InvalidLayoofDataException;
-import com.layoof.layoof.exception.LayoofAlreadyExistsException;
-import com.layoof.layoof.exception.LayoofNotFoundException;
-import com.layoof.layoof.exception.LayoofNotOwnedException;
-import com.layoof.layoof.exception.UnauthenticatedException;
+import com.layoof.layoof.exception.*;
 import com.layoof.layoof.mapper.LayoofMapper;
 import com.layoof.layoof.repository.LayoofRepository;
 import com.layoof.layoof.repository.SourceRepository;
+import com.layoof.layoof.repository.UserRepository;
+import com.layoof.layoof.uploadFile.FileUpload;
+import com.layoof.layoof.uploadFile.ImageUploader;
+import com.layoof.layoof.util.EmailNormalizer;
 import com.layoof.layoof.util.LayoofNormalizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -28,6 +28,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,10 +36,15 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class LayoofService {
 
+    private static final String LAYOOF_IMAGE_FOLDER = "layoofs/";
+
     private final LayoofRepository layoofRepository;
     private final SourceRepository sourceRepository;
     private final LayoofMapper layoofMapper;
     private final LayoofAiService layoofAiService;
+    private final ReputationService reputationService;
+    private final UserRepository userRepository;
+    private final ImageUploader imageUploader;
 
     @Transactional(readOnly = true)
     public List<LayoofResponseDto> listByAuthor(User author) {
@@ -76,11 +82,20 @@ public class LayoofService {
         String sourceUrl = requireUrl(request.sourceUrl(), "O endereco da noticia nao e uma url valida");
         requireUniqueSourceUrl(sourceUrl, null);
 
+        if (author.getLinkedinURL() == null || author.getLinkedinURL().isBlank()) {
+            throw new InvalidURLLinkedinException("A URL do LinkedIn não pode estar vazia");
+        }
+
+        Optional<User> userWithSameLinkedIn = userRepository.findByLinkedinURL(author.getLinkedinURL());
+
+        if (userWithSameLinkedIn.isPresent()) {
+            throw new InvalidURLLinkedinException("Esta conta do LinkedIn já está vinculada a outro usuário");
+        }
+
         Layoof layoof = new Layoof();
         apply(layoof, request, sourceUrl, summary);
         layoof.setAuthor(author);
         layoof.setStatus(LayoofStatus.PUBLISHED);
-        layoof.setConfidence(LayoofConfidence.MEDIUM);
 
         return layoofMapper.toResponse(layoofRepository.save(layoof));
     }
@@ -93,10 +108,31 @@ public class LayoofService {
         Layoof layoof = requireAuthor(findEntityById(layoofId), author,
                 "Voce so pode editar as demissoes que voce mesmo cadastrou");
 
+        String previousImage = layoof.getImageUrl();
+
         String sourceUrl = requireUrl(request.sourceUrl(), "O endereco da noticia nao e uma url valida");
         requireUniqueSourceUrl(sourceUrl, layoofId);
 
         apply(layoof, request, sourceUrl, summary);
+
+        if (!Objects.equals(previousImage, layoof.getImageUrl())) {
+            imageUploader.deleteByUrl(previousImage);
+        }
+
+        return layoofMapper.toResponse(layoof);
+    }
+
+    @Transactional
+    public LayoofResponseDto updateImage(UUID layoofId, User author, FileUpload file) {
+        requireAuthenticated(author);
+
+        Layoof layoof = requireAuthor(findEntityById(layoofId), author,
+                "Voce so pode trocar a imagem das demissoes que voce mesmo cadastrou");
+
+        String imageUrl = imageUploader.upload(file, LAYOOF_IMAGE_FOLDER + layoof.getLayoofId());
+
+        imageUploader.deleteByUrl(layoof.getImageUrl());
+        layoof.setImageUrl(imageUrl);
 
         return layoofMapper.toResponse(layoof);
     }
@@ -108,7 +144,11 @@ public class LayoofService {
         Layoof layoof = requireAuthor(findEntityById(layoofId), author,
                 "Voce so pode apagar as demissoes que voce mesmo cadastrou");
 
+        imageUploader.deleteByUrl(layoof.getImageUrl());
         layoofRepository.delete(layoof);
+        layoofRepository.flush();
+
+        reputationService.refresh(author);
     }
 
     private void apply(Layoof layoof, LayoofRequestDto request, String sourceUrl, String summary) {

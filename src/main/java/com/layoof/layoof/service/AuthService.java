@@ -24,6 +24,7 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,7 +43,6 @@ public class AuthService {
     private final UserMapper userMapper;
     private final TokenService tokenService;
     private final LoginAttemptGuard loginAttemptGuard;
-    private final SessionService sessionService;
 
     private String decoyHash;
 
@@ -155,19 +155,12 @@ public class AuthService {
         }
     }
 
-    private AuthResponseDto issueToken(User user) {
-        return AuthResponseDto.bearer(
-                tokenService.generateToken(user, sessionService.open(user)),
-                userMapper.toResponse(user));
+    public void logout() {
+        SecurityContextHolder.clearContext();
     }
 
-    @Transactional
-    public void logout(String authorizationHeader) {
-        UUID sessionId = tokenService.sessionIdFromHeader(authorizationHeader);
-
-        if (sessionId != null) {
-            sessionService.revoke(sessionId);
-        }
+    private AuthResponseDto issueToken(User user) {
+        return AuthResponseDto.bearer(tokenService.generateToken(user), userMapper.toResponse(user));
     }
 
     private User createFromGoogle(String googleId, String email, String name, String picture) {
