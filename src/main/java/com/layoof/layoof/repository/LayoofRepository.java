@@ -37,5 +37,17 @@ public interface LayoofRepository extends JpaRepository<Layoof, UUID> {
     @Query("UPDATE Layoof l SET l.author = null WHERE l.author = :author")
     void detachAuthor(@Param("author") User author);
 
+    @Query("""
+            select sum(case when r.type = com.layoof.layoof.enums.ReactType.LIKE then 1
+                            when r.type = com.layoof.layoof.enums.ReactType.DISLIKE then -1
+                            else 0 end)
+            from Layoof l
+            left join l.reacts r
+            where l.author = :author
+            group by l.layoofId, l.createdAt
+            order by l.createdAt
+            """)
+    List<Long> reactBalancesByAuthor(@Param("author") User author);
+
     long countByStatus(LayoofStatus status);
 }
