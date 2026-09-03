@@ -2,6 +2,8 @@ package com.layoof.layoof.exception;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.MessageSourceResolvable;
+import org.springframework.core.MethodParameter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
@@ -10,10 +12,13 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.lang.Nullable;
 import org.springframework.validation.FieldError;
+import org.springframework.validation.method.ParameterValidationResult;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
 import tools.jackson.core.JacksonException;
 import tools.jackson.databind.exc.InvalidFormatException;
@@ -83,6 +88,39 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
         problem.setProperty(ERRORS_FIELD, errors);
 
         return ResponseEntity.badRequest().body(problem);
+    }
+
+    @Override
+    protected ResponseEntity<Object> handleHandlerMethodValidationException(HandlerMethodValidationException ex,
+                                                                           HttpHeaders headers,
+                                                                           HttpStatusCode status,
+                                                                           WebRequest request) {
+
+        Map<String, String> errors = new LinkedHashMap<>();
+        for (ParameterValidationResult result : ex.getParameterValidationResults()) {
+            result.getResolvableErrors().stream()
+                    .map(MessageSourceResolvable::getDefaultMessage)
+                    .filter(Objects::nonNull)
+                    .findFirst()
+                    .ifPresent(message -> errors.put(parameterName(result.getMethodParameter()), message));
+        }
+
+        ProblemDetail problem = buildProblem(
+                HttpStatus.BAD_REQUEST, TITLE_INVALID_REQUEST, DETAIL_INVALID_DATA);
+        problem.setType(TYPE_INVALID_REQUEST);
+        problem.setProperty(ERRORS_FIELD, errors);
+
+        return ResponseEntity.badRequest().body(problem);
+    }
+
+    private String parameterName(MethodParameter parameter) {
+        RequestPart part = parameter.getParameterAnnotation(RequestPart.class);
+        if (part != null && !part.value().isBlank()) {
+            return part.value();
+        }
+
+        String name = parameter.getParameterName();
+        return name == null ? parameter.getParameterType().getSimpleName() : name;
     }
 
     @Override

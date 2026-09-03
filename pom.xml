@@ -37,6 +37,7 @@
 		<springdoc.version>3.1.0</springdoc.version>
 		<jsoup.version>1.21.2</jsoup.version>
 		<dependency-check.version>12.1.0</dependency-check.version>
+		<awssdk.version>2.54.11</awssdk.version>
 	</properties>
 	<dependencies>
 		<dependency>
@@ -94,6 +95,10 @@
 			<version>${jsoup.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+		</dependency>
+		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<scope>runtime</scope>
@@ -124,6 +129,13 @@
 				<groupId>org.springframework.ai</groupId>
 				<artifactId>spring-ai-bom</artifactId>
 				<version>${spring-ai.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${awssdk.version}</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
