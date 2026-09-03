@@ -7,4 +7,8 @@ public interface EmailMessage {
     String getSubject();
     String getBody();
     TypeEmail getType();
+
+    default boolean isHtml() {
+        return true;
+    }
 }
