@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -18,8 +19,8 @@ import java.io.IOException;
 @RequiredArgsConstructor
 public class RateLimitFilter extends OncePerRequestFilter {
 
-    private static final String PREFLIGHT = "OPTIONS";
     private static final String AUTH_PATH = "/auth/";
+    private static final String ANY_PATH = "/";
     private static final String DENIED = "Muitas requisicoes em pouco tempo. Tente novamente daqui a instantes";
 
     private final RateLimiter rateLimiter;
@@ -32,9 +33,9 @@ public class RateLimitFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
 
-        String path = request.getRequestURI();
-        RateLimitProperties.Policy policy = policyFor(path);
-        String key = bucketFor(path) + "|" + clientIpResolver.resolve(request);
+        boolean authRequest = request.getRequestURI().startsWith(AUTH_PATH);
+        RateLimitProperties.Policy policy = authRequest ? properties.auth() : properties.standard();
+        String key = (authRequest ? AUTH_PATH : ANY_PATH) + "|" + clientIpResolver.resolve(request);
 
         RateLimiter.Decision decision = rateLimiter.check(key, policy.requests(), policy.window());
         if (!decision.allowed()) {
@@ -48,20 +49,6 @@ public class RateLimitFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        return !properties.enabled() || PREFLIGHT.equals(request.getMethod());
-    }
-
-    private RateLimitProperties.Policy policyFor(String path) {
-        if (path.startsWith(AUTH_PATH)) {
-            return properties.auth();
-        }
-        return properties.standard();
-    }
-
-    private String bucketFor(String path) {
-        if (path.startsWith(AUTH_PATH)) {
-            return AUTH_PATH;
-        }
-        return "/";
+        return !properties.enabled() || HttpMethod.OPTIONS.matches(request.getMethod());
     }
 }

@@ -63,7 +63,7 @@ public class SecurityConfig {
 
     private static final long CORS_MAX_AGE_SECONDS = 3600;
 
-    private final SecurityFilter securityFilter;
+    private final SecurityFilter securityFilter;
     private final ProblemDetailWriter problemDetailWriter;
     private final LayoofSecurityProperties properties;
 
@@ -113,6 +113,7 @@ public class SecurityConfig {
         }
 
         registry
+                .requestMatchers(HttpMethod.GET, "/files/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/register").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/login").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/google").permitAll()

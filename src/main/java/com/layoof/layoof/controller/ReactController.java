@@ -2,6 +2,7 @@ package com.layoof.layoof.controller;
 
 import com.layoof.layoof.dto.request.ReactRequestDto;
 import com.layoof.layoof.dto.response.ReactResponseDto;
+import com.layoof.layoof.dto.response.ReactSummaryResponseDto;
 import com.layoof.layoof.entity.User;
 import com.layoof.layoof.service.ReactService;
 import jakarta.validation.Valid;
@@ -17,33 +18,58 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/comments/{commentId}/reacts")
+@RequestMapping("/reacts")
 @RequiredArgsConstructor
 public class ReactController {
 
     private final ReactService reactService;
 
-    @PostMapping
-    public ReactResponseDto react(@PathVariable UUID commentId,
-                                  @RequestBody @Valid ReactRequestDto request,
+    @PostMapping("/comments/{commentId}")
+    public ReactResponseDto reactToComment(@PathVariable UUID commentId,
+                                           @RequestBody @Valid ReactRequestDto request,
+                                           @AuthenticationPrincipal User principal) {
+
+        return reactService.reactToComment(commentId, request, principal);
+    }
+
+    @DeleteMapping("/comments/{commentId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeFromComment(@PathVariable UUID commentId,
                                   @AuthenticationPrincipal User principal) {
 
-        return reactService.react(commentId, request, principal);
+        reactService.removeFromComment(commentId, principal);
     }
 
-    @DeleteMapping
+    @GetMapping("/comments/{commentId}")
+    public ReactSummaryResponseDto summaryByComment(@PathVariable UUID commentId,
+                                                    @AuthenticationPrincipal User principal) {
+
+        return reactService.summaryByComment(commentId, principal);
+    }
+
+    @PostMapping("/layoofs/{layoofId}")
+    public ReactResponseDto reactToLayoof(@PathVariable UUID layoofId,
+                                          @RequestBody @Valid ReactRequestDto request,
+                                          @AuthenticationPrincipal User principal) {
+
+        return reactService.reactToLayoof(layoofId, request, principal);
+    }
+
+    @DeleteMapping("/layoofs/{layoofId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void remove(@PathVariable UUID commentId, @AuthenticationPrincipal User principal) {
-        reactService.remove(commentId, principal);
+    public void removeFromLayoof(@PathVariable UUID layoofId,
+                                 @AuthenticationPrincipal User principal) {
+
+        reactService.removeFromLayoof(layoofId, principal);
     }
 
-    @GetMapping
-    public List<ReactResponseDto> list(@PathVariable UUID commentId) {
-        return reactService.listByComment(commentId);
-    }
+    @GetMapping("/layoofs/{layoofId}")
+    public ReactSummaryResponseDto summaryByLayoof(@PathVariable UUID layoofId,
+                                                   @AuthenticationPrincipal User principal) {
 
+        return reactService.summaryByLayoof(layoofId, principal);
+    }
 }
