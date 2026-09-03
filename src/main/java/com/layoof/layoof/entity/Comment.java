@@ -14,7 +14,10 @@ import java.util.UUID;
 
 
 @Entity
-@Table(name = "TB_COMMENT")
+@Table(name = "tb_comment", indexes = {
+        @Index(name = "idx_comment_layoof", columnList = "layoof_id"),
+        @Index(name = "idx_comment_author", columnList = "author_id")
+})
 @Getter
 @Setter
 @Builder

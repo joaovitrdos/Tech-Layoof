@@ -1,6 +1,8 @@
 package com.layoof.layoof.entity;
 
 import com.layoof.layoof.enums.AuthProvider;
+import com.layoof.layoof.enums.UserConfidence;
+import com.layoof.layoof.util.ReputationScore;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -18,7 +20,7 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "TB_USERS")
+@Table(name = "tb_users")
 @Getter
 @Setter
 @NoArgsConstructor
@@ -47,9 +49,19 @@ public class User implements UserDetails, Serializable {
     @Column(name = "google_id", unique = true)
     private String googleId;
 
+    @Column(name = "linkedin_id", unique = true)
+    private String linkedinId;
+
+    @Column(name = "linkedin_url", unique = true)
+    private String linkedinURL;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "auth_provider", nullable = false, length = 20)
     private AuthProvider authProvider;
+
+    @Builder.Default
+    @Column(name = "confidence_score", nullable = false, columnDefinition = "integer default 50")
+    private int confidenceScore = ReputationScore.INITIAL;
 
     @OneToMany(mappedBy = "author", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments;
@@ -75,6 +87,11 @@ public class User implements UserDetails, Serializable {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+    }
+
+    @Transient
+    public UserConfidence getConfidence() {
+        return UserConfidence.of(confidenceScore);
     }
 
     public boolean hasLocalPassword() {

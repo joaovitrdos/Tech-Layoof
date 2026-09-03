@@ -7,6 +7,7 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.Check;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
@@ -14,10 +15,17 @@ import java.util.UUID;
 
 @Entity
 @Table(
-        name = "TB_REACT",
-        uniqueConstraints = @UniqueConstraint(
-                name = "uk_react_comment_author",
-                columnNames = {"comment_id", "author_id"}))
+        name = "tb_react",
+        uniqueConstraints = {
+                @UniqueConstraint(
+                        name = "uk_react_comment_author",
+                        columnNames = {"comment_id", "author_id"}),
+                @UniqueConstraint(
+                        name = "uk_react_layoof_author",
+                        columnNames = {"layoof_id", "author_id"})
+        },
+        indexes = @Index(name = "idx_react_author", columnList = "author_id"))
+@Check(name = "ck_react_target", constraints = "(comment_id is not null) <> (layoof_id is not null)")
 @Getter
 @Setter
 @Builder
@@ -36,9 +44,13 @@ public class React implements Serializable {
     @Column(name = "type", length = 16, nullable = false)
     private ReactType type;
 
-    @ManyToOne(fetch = FetchType.LAZY, optional = false)
-    @JoinColumn(name = "comment_id", nullable = false)
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "comment_id")
     private Comment comment;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "layoof_id")
+    private Layoof layoof;
 
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "author_id", nullable = false)

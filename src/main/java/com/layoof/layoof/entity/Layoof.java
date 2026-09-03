@@ -14,11 +14,12 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "TB_LAYOOF", indexes = {
+@Table(name = "tb_layoof", indexes = {
         @Index(name = "idx_layoof_title_fingerprint", columnList = "title_fingerprint"),
         @Index(name = "idx_layoof_company", columnList = "company"),
         @Index(name = "idx_layoof_status_published_at", columnList = "status, published_at"),
-        @Index(name = "idx_layoof_author", columnList = "author_id")
+        @Index(name = "idx_layoof_author", columnList = "author_id"),
+        @Index(name = "idx_layoof_source", columnList = "source_id")
 })
 @Getter
 @Setter
@@ -83,6 +84,9 @@ public class Layoof implements Serializable {
 
     @OneToMany(mappedBy = "layoof", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Comment> comments;
+
+    @OneToMany(mappedBy = "layoof", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<React> reacts;
 
     @Column(name = "created_at")
     private LocalDateTime createdAt;

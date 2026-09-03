@@ -13,7 +13,7 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "TB_SOURCE")
+@Table(name = "tb_source")
 @Getter
 @Setter
 @Builder

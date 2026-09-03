@@ -12,7 +12,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "gg_verification_code")
+@Table(name = "tb_verification_code", indexes = {
+        @Index(name = "idx_verification_code_user", columnList = "user_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor

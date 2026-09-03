@@ -10,7 +10,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "TB_EMAILS")
+@Table(name = "tb_emails", indexes = {
+        @Index(name = "idx_email_user", columnList = "user_id")
+})
 @Getter
 @Setter
 @NoArgsConstructor
