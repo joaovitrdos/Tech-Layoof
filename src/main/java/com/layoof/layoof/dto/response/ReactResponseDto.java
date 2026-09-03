@@ -10,6 +10,7 @@ public record ReactResponseDto(
         UUID reactId,
         ReactType type,
         UUID commentId,
+        UUID layoofId,
         UUID authorId,
         String authorName,
         String authorPicture,
