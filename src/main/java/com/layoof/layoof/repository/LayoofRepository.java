@@ -3,6 +3,8 @@ package com.layoof.layoof.repository;
 import com.layoof.layoof.entity.Layoof;
 import com.layoof.layoof.entity.User;
 import com.layoof.layoof.enums.LayoofStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
@@ -26,10 +28,10 @@ public interface LayoofRepository extends JpaRepository<Layoof, UUID> {
     Optional<Layoof> findWithSourceAndAuthorByLayoofId(UUID layoofId);
 
     @EntityGraph(attributePaths = {"source", "author"})
-    List<Layoof> findAllByOrderByPublishedAtDesc();
+    Page<Layoof> findAllBy(Pageable pageable);
 
     @EntityGraph(attributePaths = {"source", "author"})
-    List<Layoof> findByStatusOrderByPublishedAtDesc(LayoofStatus status);
+    Page<Layoof> findByStatus(LayoofStatus status, Pageable pageable);
 
     @EntityGraph(attributePaths = {"source", "author"})
     List<Layoof> findByAuthorUserIdOrderByCreatedAtDesc(UUID userId);

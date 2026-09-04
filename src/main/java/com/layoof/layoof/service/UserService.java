@@ -17,7 +17,9 @@ import com.layoof.layoof.uploadFile.ImageSourceRule;
 import com.layoof.layoof.uploadFile.ImageUploader;
 import com.layoof.layoof.util.EmailNormalizer;
 import com.layoof.layoof.util.LayoofNormalizer;
+import com.layoof.layoof.infra.config.CacheConfig;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -147,6 +149,7 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("Nenhum usuario encontrado com o id: " + userId));
     }
 
+    @Cacheable(CacheConfig.USER_COUNT)
     public long count() {
         return userRepository.count();
     }

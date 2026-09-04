@@ -1,0 +1,11 @@
+target/
+.git/
+.env
+.env.*
+!.env.example
+uploads/
+web/
+.idea/
+*.iml
+.claude/
+HELP.md

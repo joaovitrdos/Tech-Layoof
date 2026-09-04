@@ -17,6 +17,7 @@ import com.layoof.layoof.infra.security.TokenService;
 import com.layoof.layoof.mapper.UserMapper;
 import com.layoof.layoof.notification.EmailFactory;
 import com.layoof.layoof.notification.EmailRequestedEvent;
+import com.layoof.layoof.infra.security.AttemptGuard;
 import com.layoof.layoof.repository.UserRepository;
 import com.layoof.layoof.util.EmailNormalizer;
 import jakarta.annotation.PostConstruct;
@@ -42,6 +43,7 @@ public class AuthService {
     private final ApplicationEventPublisher events;
     private final UserMapper userMapper;
     private final TokenService tokenService;
+    private final AttemptGuard attemptGuard;
 
     private String decoyHash;
 
@@ -96,21 +98,28 @@ public class AuthService {
     @Transactional
     public AuthResponseDto login(LoginRequestDto request) {
         String email = normalizeEmail(request.email());
+        attemptGuard.checkLogin(email);
 
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             burnPasswordComparison(request.password());
-            throw invalidCredentials();
+            throw failedLogin(email);
         }
         if (!user.hasLocalPassword()) {
             throw new GoogleAccountAlreadyExistsException(
                     "Esta conta foi criada com o Google. Entre usando o botao 'Entrar com Google'");
         }
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw invalidCredentials();
+            throw failedLogin(email);
         }
 
+        attemptGuard.clearLogin(email);
         return issueToken(user);
+    }
+
+    private InvalidCredentialsException failedLogin(String email) {
+        attemptGuard.recordLoginFailure(email);
+        return invalidCredentials();
     }
 
     private InvalidCredentialsException invalidCredentials() {

@@ -1,5 +1,6 @@
 package com.layoof.layoof.exception;
 
+import io.github.resilience4j.ratelimiter.RequestNotPermitted;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.MessageSourceResolvable;
@@ -42,12 +43,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
     private static final URI TYPE_INTERNAL = URI.create("/errors/internal");
     private static final URI TYPE_INVALID_REQUEST = URI.create("/errors/invalid-request");
+    private static final URI TYPE_TOO_MANY = URI.create("/errors/too-many-requests");
 
     private static final String TITLE_INTERNAL = "Erro interno";
     private static final String TITLE_INVALID_REQUEST = "Requisicao invalida";
+    private static final String TITLE_TOO_MANY = "Requisicoes em excesso";
     private static final String DETAIL_INTERNAL = "Erro inesperado ao processar a requisicao";
     private static final String DETAIL_INVALID_DATA = "Dados invalidos na requisicao";
     private static final String DETAIL_MALFORMED_BODY = "Corpo da requisicao ausente ou malformado";
+    private static final String DETAIL_TOO_MANY = "Servico ocupado no momento. Tente novamente em instantes";
 
     @ExceptionHandler(LayoofException.class)
     public ProblemDetail handleLayoofException(LayoofException ex) {
@@ -59,6 +63,15 @@ public class GlobalExceptionHandler extends ResponseEntityExceptionHandler {
 
         ProblemDetail problem = buildProblem(ex.getStatus(), ex.getTitle(), ex.getMessage());
         problem.setType(ex.getType());
+        return problem;
+    }
+
+    @ExceptionHandler(RequestNotPermitted.class)
+    public ProblemDetail handleRequestNotPermitted(RequestNotPermitted ex) {
+        log.warn("Limite global atingido: {}", ex.getMessage());
+
+        ProblemDetail problem = buildProblem(HttpStatus.TOO_MANY_REQUESTS, TITLE_TOO_MANY, DETAIL_TOO_MANY);
+        problem.setType(TYPE_TOO_MANY);
         return problem;
     }
 

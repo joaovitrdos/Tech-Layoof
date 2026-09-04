@@ -15,11 +15,17 @@ import com.layoof.layoof.entity.User;
 import com.layoof.layoof.enums.LayoofConfidence;
 import com.layoof.layoof.enums.LayoofStatus;
 import com.layoof.layoof.exception.*;
+import com.layoof.layoof.infra.config.CacheConfig;
 import com.layoof.layoof.mapper.LayoofMapper;
 import com.layoof.layoof.repository.LayoofRepository;
 import com.layoof.layoof.repository.SourceRepository;
 import com.layoof.layoof.repository.UserRepository;
 import com.layoof.layoof.uploadFile.FileUpload;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import com.layoof.layoof.uploadFile.FileUploads;
 import com.layoof.layoof.uploadFile.ImageSourceRule;
 import com.layoof.layoof.uploadFile.ImageUploader;
@@ -68,6 +74,7 @@ public class LayoofService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.LAYOOF_SEARCH, key = "#title")
     public List<SearchLayoofResponseDto> searchLayoof(String title) {
 
         if (title == null || title.isEmpty()) {
@@ -79,6 +86,7 @@ public class LayoofService {
     }
 
     @Transactional(readOnly = true)
+    @Cacheable(value = CacheConfig.LAYOOF_BY_ID, key = "#layoofId")
     public LayoofResponseDto findById(UUID layoofId) {
         return layoofMapper.toResponse(layoofRepository.findWithSourceAndAuthorByLayoofId(layoofId)
                 .orElseThrow(() -> new LayoofNotFoundException(
@@ -99,6 +107,10 @@ public class LayoofService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.LAYOOF_COUNT, allEntries = true),
+            @CacheEvict(value = CacheConfig.LAYOOF_SEARCH, allEntries = true)
+    })
     public LayoofResponseDto create(LayoofRequestDto request, MultipartFile file, User author) {
         requireAuthenticated(author);
         ImageSourceRule.requireExactlyOne(file, request.imageUrl());
@@ -133,6 +145,10 @@ public class LayoofService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.LAYOOF_BY_ID, key = "#layoofId"),
+            @CacheEvict(value = CacheConfig.LAYOOF_SEARCH, allEntries = true)
+    })
     public LayoofResponseDto update(UUID layoofId, LayoofRequestDto request, User author) {
         requireAuthenticated(author);
 
@@ -155,6 +171,10 @@ public class LayoofService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.LAYOOF_BY_ID, key = "#layoofId"),
+            @CacheEvict(value = CacheConfig.LAYOOF_SEARCH, allEntries = true)
+    })
     public LayoofResponseDto updateImage(UUID layoofId, User author, FileUpload file) {
         requireAuthenticated(author);
 
@@ -170,6 +190,11 @@ public class LayoofService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = CacheConfig.LAYOOF_BY_ID, key = "#layoofId"),
+            @CacheEvict(value = CacheConfig.LAYOOF_COUNT, allEntries = true),
+            @CacheEvict(value = CacheConfig.LAYOOF_SEARCH, allEntries = true)
+    })
     public void delete(UUID layoofId, User author) {
         requireAuthenticated(author);
 
@@ -311,12 +336,15 @@ public class LayoofService {
     }
 
     @Transactional(readOnly = true)
-    public List<LayoofResponseDto> list(LayoofStatus status) {
-        return layoofMapper.toResponseList(status == null
-                ? layoofRepository.findAllByOrderByPublishedAtDesc()
-                : layoofRepository.findByStatusOrderByPublishedAtDesc(status));
+    public Page<LayoofResponseDto> list(LayoofStatus status, Pageable pageable) {
+        Page<Layoof> page = status == null
+                ? layoofRepository.findAllBy(pageable)
+                : layoofRepository.findByStatus(status, pageable);
+
+        return page.map(layoofMapper::toResponse);
     }
 
+    @Cacheable(CacheConfig.LAYOOF_COUNT)
     public long count() {
         return layoofRepository.count();
     }

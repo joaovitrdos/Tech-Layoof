@@ -13,6 +13,7 @@ import com.layoof.layoof.exception.InvalidCredentialsException;
 import com.layoof.layoof.exception.InvalidVerificationCodeException;
 import com.layoof.layoof.notification.EmailFactory;
 import com.layoof.layoof.notification.EmailRequestedEvent;
+import com.layoof.layoof.infra.security.AttemptGuard;
 import com.layoof.layoof.repository.UserRepository;
 import com.layoof.layoof.util.EmailNormalizer;
 import lombok.RequiredArgsConstructor;
@@ -30,10 +31,14 @@ public class PasswordRecoveryService {
     private final EmailFactory emailFactory;
     private final ApplicationEventPublisher events;
     private final PasswordEncoder passwordEncoder;
+    private final AttemptGuard attemptGuard;
 
     @Transactional
     public SendEmailResponseDto sendRecoveryCode(SendEmailRequestDto request) {
-        userRepository.findByEmail(EmailNormalizer.normalize(request.email()))
+        String email = EmailNormalizer.normalize(request.email());
+        attemptGuard.checkRecovery(email);
+
+        userRepository.findByEmail(email)
                 .filter(User::hasLocalPassword)
                 .ifPresent(this::sendCode);
 

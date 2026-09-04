@@ -8,11 +8,13 @@ import lombok.RequiredArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 @Service
 @RequiredArgsConstructor
+@RateLimiter(name = "openai")
 public class LayoofAiService {
 
     private static final Logger log = LoggerFactory.getLogger(LayoofAiService.class);

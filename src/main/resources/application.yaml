@@ -1,0 +1,190 @@
+spring:
+  config:
+    import: optional:file:.env[.properties]
+
+  autoconfigure:
+    exclude:
+      - org.springframework.boot.security.autoconfigure.UserDetailsServiceAutoConfiguration
+
+  application:
+    name: layoof
+
+  # Data Base
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: ${JPA_DDL_AUTO:update}
+    open-in-view: false
+    show-sql: false
+    defer-datasource-initialization: true
+
+  data:
+    redis:
+      repositories:
+        enabled: false
+      host: ${REDIS_HOST}
+      port: ${REDIS_PORT}
+      password: ${REDIS_PASSWORD}
+      timeout: 2s
+      connect-timeout: 1s
+
+  # Extensões, text search e índices que o Hibernate não cria
+  sql:
+    init:
+      mode: always
+      data-locations: classpath:db/init.sql
+      separator: ^^^
+
+  # E-mail (SMTP)
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS}
+          connectiontimeout: 5000
+          timeout: 5000
+          writetimeout: 5000
+
+  # IA (Spring AI + OpenAI)
+  ai:
+    model:
+      chat: ${AI_CHAT_MODEL:openai}
+    openai:
+      api-key: ${AI_CHAT_GPT_API_KEY}
+      chat:
+        model: gpt-4.1-mini
+        temperature: 0.2
+
+  # Corpo da requisição
+  jackson:
+    deserialization:
+      fail-on-unknown-properties: true
+
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: ${layoof.image.max-size}
+      max-request-size: 6MB
+
+# JWT
+api:
+  security:
+    token:
+      secret: ${LAYOOF_JWT_SECRET}
+
+# Configurações próprias da aplicação
+layoof:
+  mail:
+    from: ${MAIL_FROM}
+    enabled: ${MAIL_ENABLED}
+
+  # Google OAuth
+  google:
+    client-id: ${GOOGLE_CLIENT_ID}
+
+  # IA
+  ai:
+    enabled: ${AI_ENABLED:true}
+
+    # Coleta agendada
+    ingestion:
+      enabled: ${INGESTION_ENABLED:true}
+      cron: "0 0 8,16 * * *"
+      zone: America/Sao_Paulo
+      quantity: 4
+      lookback: 2d
+      timeout: 15s
+      terms:
+        - tech layoffs
+        - demissoes tecnologia
+
+  # Segurança
+  security:
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5173}
+    docs-enabled: ${DOCS_ENABLED:false}
+    max-payload-size: 256KB
+    max-upload-size: ${layoof.image.max-size}
+    upload-paths: /users/me,/users/me/picture,/layoofs,/layoofs/*/image
+    rate-limit:
+      enabled: true
+      auth:
+        capacity: 10
+        window: 1m
+      ai:
+        capacity: 5
+        window: 1h
+      user:
+        capacity: 120
+        window: 1m
+      anonymous:
+        capacity: 60
+        window: 1m
+      login-attempt:
+        capacity: 5
+        window: 15m
+      recovery:
+        capacity: 3
+        window: 15m
+
+  image:
+    max-size: 5MB
+
+  # Armazenamento de imagens (local ou Cloudflare R2)
+  storage:
+    provider: ${STORAGE_PROVIDER:local}
+    public-url: ${STORAGE_PUBLIC_URL:http://localhost:8080/files}
+    local-directory: ${STORAGE_LOCAL_DIR:uploads}
+    max-image-size: ${layoof.image.max-size}
+    account-id: ${R2_ACCOUNT_ID:}
+    bucket: ${R2_BUCKET:}
+    access-key: ${R2_ACCESS_KEY_ID:}
+    secret-key: ${R2_SECRET_ACCESS_KEY:}
+
+# Teto global de chamadas a OpenAI. Aqui o recurso escasso e a cota do provedor,
+# entao um limite global por instancia da aplicacao e o correto.
+# O limite por IP e por usuario fica no RateLimitFilter, sobre Redis.
+resilience4j:
+  ratelimiter:
+    instances:
+      openai:
+        limit-for-period: 20
+        limit-refresh-period: 1m
+        timeout-duration: 5s
+
+# Documentação
+springdoc:
+  api-docs:
+    enabled: ${DOCS_ENABLED:false}
+  swagger-ui:
+    enabled: ${DOCS_ENABLED:false}
+
+# Respostas de erro
+server:
+  forward-headers-strategy: native
+
+  error:
+    include-message: never
+    include-stacktrace: never
+    include-binding-errors: never
+    include-exception: false
+    whitelabel:
+      enabled: false
+
+  # Servidor
+  tomcat:
+    max-http-form-post-size: 256KB
+    max-swallow-size: 8MB
+    max-http-response-header-size: 16KB
+
+  max-http-request-header-size: 16KB

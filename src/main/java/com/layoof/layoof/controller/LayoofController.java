@@ -13,6 +13,10 @@ import com.layoof.layoof.uploadFile.FileUploads;
 import com.layoof.layoof.uploadFile.ValidImage;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -57,8 +61,11 @@ public class LayoofController {
     }
 
     @GetMapping
-    public List<LayoofResponseDto> list(@RequestParam(required = false) LayoofStatus status) {
-        return layoofService.list(status);
+    public Page<LayoofResponseDto> list(@RequestParam(required = false) LayoofStatus status,
+                                        @PageableDefault(size = 20, sort = "publishedAt",
+                                                direction = Sort.Direction.DESC) Pageable pageable) {
+
+        return layoofService.list(status, pageable);
     }
 
     @GetMapping("/me")
