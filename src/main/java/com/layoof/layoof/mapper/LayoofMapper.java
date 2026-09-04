@@ -1,6 +1,7 @@
 package com.layoof.layoof.mapper;
 
 import com.layoof.layoof.dto.response.LayoofResponseDto;
+import com.layoof.layoof.dto.response.SearchLayoofResponseDto;
 import com.layoof.layoof.dto.response.SourceResponseDto;
 import com.layoof.layoof.entity.Layoof;
 import com.layoof.layoof.entity.Source;
@@ -21,4 +22,7 @@ public interface LayoofMapper {
     SourceResponseDto toResponse(Source source);
 
     List<LayoofResponseDto> toResponseList(List<Layoof> layoofs);
+
+    List<SearchLayoofResponseDto> toSearchResponseList(List<Layoof> layoofs);
+
 }

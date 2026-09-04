@@ -7,6 +7,7 @@ import com.layoof.layoof.dto.request.LayoofResearchRequestDto;
 import com.layoof.layoof.dto.request.SourceRequestDto;
 import com.layoof.layoof.dto.response.LayoofDraftResponseDto;
 import com.layoof.layoof.dto.response.LayoofResponseDto;
+import com.layoof.layoof.dto.response.SearchLayoofResponseDto;
 import com.layoof.layoof.dto.response.SourceDraftResponseDto;
 import com.layoof.layoof.entity.Layoof;
 import com.layoof.layoof.entity.Source;
@@ -19,18 +20,24 @@ import com.layoof.layoof.repository.LayoofRepository;
 import com.layoof.layoof.repository.SourceRepository;
 import com.layoof.layoof.repository.UserRepository;
 import com.layoof.layoof.uploadFile.FileUpload;
+import com.layoof.layoof.uploadFile.FileUploads;
+import com.layoof.layoof.uploadFile.ImageSourceRule;
 import com.layoof.layoof.uploadFile.ImageUploader;
 import com.layoof.layoof.util.EmailNormalizer;
 import com.layoof.layoof.util.LayoofNormalizer;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -55,6 +62,23 @@ public class LayoofService {
     }
 
     @Transactional(readOnly = true)
+    public List<LayoofResponseDto> listByAuthorId(UUID authorId) {
+        return layoofMapper.toResponseList(
+                layoofRepository.findByAuthorUserIdOrderByCreatedAtDesc(authorId));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SearchLayoofResponseDto> searchLayoof(String title) {
+
+        if (title == null || title.isEmpty()) {
+            return List.of();
+        }
+
+        return layoofMapper.toSearchResponseList(
+                layoofRepository.searchByTitle(title.trim()));
+    }
+
+    @Transactional(readOnly = true)
     public LayoofResponseDto findById(UUID layoofId) {
         return layoofMapper.toResponse(layoofRepository.findWithSourceAndAuthorByLayoofId(layoofId)
                 .orElseThrow(() -> new LayoofNotFoundException(
@@ -75,8 +99,9 @@ public class LayoofService {
     }
 
     @Transactional
-    public LayoofResponseDto create(LayoofRequestDto request, User author) {
+    public LayoofResponseDto create(LayoofRequestDto request, MultipartFile file, User author) {
         requireAuthenticated(author);
+        ImageSourceRule.requireExactlyOne(file, request.imageUrl());
 
         String summary = summary(request);
         String sourceUrl = requireUrl(request.sourceUrl(), "O endereco da noticia nao e uma url valida");
@@ -86,18 +111,25 @@ public class LayoofService {
             throw new InvalidURLLinkedinException("A URL do LinkedIn não pode estar vazia");
         }
 
-        Optional<User> userWithSameLinkedIn = userRepository.findByLinkedinURL(author.getLinkedinURL());
-
-        if (userWithSameLinkedIn.isPresent()) {
-            throw new InvalidURLLinkedinException("Esta conta do LinkedIn já está vinculada a outro usuário");
-        }
+        userRepository.findByLinkedinURL(author.getLinkedinURL())
+                .filter(owner -> !owner.getUserId().equals(author.getUserId()))
+                .ifPresent(owner -> {
+                    throw new InvalidURLLinkedinException("Esta conta do LinkedIn já está vinculada a outro usuário");
+                });
 
         Layoof layoof = new Layoof();
         apply(layoof, request, sourceUrl, summary);
         layoof.setAuthor(author);
         layoof.setStatus(LayoofStatus.PUBLISHED);
 
-        return layoofMapper.toResponse(layoofRepository.save(layoof));
+        Layoof created = layoofRepository.saveAndFlush(layoof);
+
+        if (ImageSourceRule.hasFile(file)) {
+            created.setImageUrl(imageUploader.upload(
+                    FileUploads.from(file), LAYOOF_IMAGE_FOLDER + created.getLayoofId()));
+        }
+
+        return layoofMapper.toResponse(created);
     }
 
     @Transactional

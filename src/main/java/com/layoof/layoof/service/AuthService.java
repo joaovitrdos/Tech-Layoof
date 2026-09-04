@@ -13,7 +13,6 @@ import com.layoof.layoof.exception.GoogleAccountAlreadyExistsException;
 import com.layoof.layoof.exception.InvalidCredentialsException;
 import com.layoof.layoof.exception.InvalidGoogleTokenException;
 import com.layoof.layoof.exception.InvalidRegistrationDataException;
-import com.layoof.layoof.infra.security.LoginAttemptGuard;
 import com.layoof.layoof.infra.security.TokenService;
 import com.layoof.layoof.mapper.UserMapper;
 import com.layoof.layoof.notification.EmailFactory;
@@ -22,6 +21,7 @@ import com.layoof.layoof.repository.UserRepository;
 import com.layoof.layoof.util.EmailNormalizer;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -42,7 +42,6 @@ public class AuthService {
     private final ApplicationEventPublisher events;
     private final UserMapper userMapper;
     private final TokenService tokenService;
-    private final LoginAttemptGuard loginAttemptGuard;
 
     private String decoyHash;
 
@@ -97,27 +96,24 @@ public class AuthService {
     @Transactional
     public AuthResponseDto login(LoginRequestDto request) {
         String email = normalizeEmail(request.email());
-        loginAttemptGuard.assertNotLocked(email);
 
         User user = userRepository.findByEmail(email).orElse(null);
         if (user == null) {
             burnPasswordComparison(request.password());
-            throw failedAttempt(email);
+            throw invalidCredentials();
         }
         if (!user.hasLocalPassword()) {
             throw new GoogleAccountAlreadyExistsException(
                     "Esta conta foi criada com o Google. Entre usando o botao 'Entrar com Google'");
         }
         if (!passwordEncoder.matches(request.password(), user.getPassword())) {
-            throw failedAttempt(email);
+            throw invalidCredentials();
         }
 
-        loginAttemptGuard.recordSuccess(email);
         return issueToken(user);
     }
 
-    private InvalidCredentialsException failedAttempt(String email) {
-        loginAttemptGuard.recordFailure(email);
+    private InvalidCredentialsException invalidCredentials() {
         return new InvalidCredentialsException("Email ou senha invalidos");
     }
 

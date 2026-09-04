@@ -2,7 +2,6 @@ package com.layoof.layoof.infra.config;
 
 import com.layoof.layoof.exception.ProblemDetailWriter;
 import com.layoof.layoof.infra.security.PayloadSizeFilter;
-import com.layoof.layoof.infra.security.RateLimitFilter;
 import com.layoof.layoof.infra.security.SecurityFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
@@ -33,7 +32,7 @@ import java.util.List;
 
 @Configuration
 @EnableWebSecurity
-@EnableConfigurationProperties({LayoofSecurityProperties.class, RateLimitProperties.class})
+@EnableConfigurationProperties(LayoofSecurityProperties.class)
 @RequiredArgsConstructor
 public class SecurityConfig {
 
@@ -71,13 +70,6 @@ public class SecurityConfig {
     public FilterRegistrationBean<SecurityFilter> securityFilterRegistration(SecurityFilter filter) {
         FilterRegistrationBean<SecurityFilter> registration = new FilterRegistrationBean<>(filter);
         registration.setEnabled(false);
-        return registration;
-    }
-
-    @Bean
-    public FilterRegistrationBean<RateLimitFilter> rateLimitFilterRegistration(RateLimitFilter filter) {
-        FilterRegistrationBean<RateLimitFilter> registration = new FilterRegistrationBean<>(filter);
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE + 10);
         return registration;
     }
 
@@ -120,6 +112,9 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/auth/password/forgot").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/password/validate").permitAll()
                 .requestMatchers(HttpMethod.POST, "/auth/password/reset").permitAll()
+                .requestMatchers(HttpMethod.GET, "/layoofs/count").permitAll()
+                .requestMatchers(HttpMethod.GET, "/users/count").permitAll()
+                .requestMatchers(HttpMethod.GET, "/source/count").permitAll()
                 .anyRequest().authenticated();
     }
 

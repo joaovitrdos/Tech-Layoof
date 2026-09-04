@@ -4,13 +4,17 @@ import com.layoof.layoof.dto.request.ChangePasswordRequestDto;
 import com.layoof.layoof.dto.request.LayoofRequestDto;
 import com.layoof.layoof.dto.request.SearchUserRequestDto;
 import com.layoof.layoof.dto.request.UpdateUserRequestDto;
+import com.layoof.layoof.dto.response.CommentReponseDto;
 import com.layoof.layoof.dto.response.LayoofResponseDto;
+import com.layoof.layoof.dto.response.ReactResponseDto;
 import com.layoof.layoof.dto.response.PublicUserResponseDto;
 import com.layoof.layoof.dto.response.ResetPasswordResponseDto;
 import com.layoof.layoof.dto.response.SearchUserResponseDto;
 import com.layoof.layoof.dto.response.UserResponseDto;
 import com.layoof.layoof.entity.User;
+import com.layoof.layoof.service.CommentService;
 import com.layoof.layoof.service.LayoofService;
+import com.layoof.layoof.service.ReactService;
 import com.layoof.layoof.service.PasswordRecoveryService;
 import com.layoof.layoof.service.UserService;
 import com.layoof.layoof.uploadFile.FileUploads;
@@ -34,32 +38,32 @@ public class UserController {
     private final UserService userService;
     private final PasswordRecoveryService passwordRecoveryService;
     private final LayoofService layoofService;
+    private final CommentService commentService;
+    private final ReactService reactService;
 
     @GetMapping("/me")
     public UserResponseDto me(@AuthenticationPrincipal User principal) {
         return userService.findById(principal.getUserId());
     }
 
-    @PutMapping("/me")
-    public UserResponseDto updateMe(@AuthenticationPrincipal User principal, @RequestBody @Valid UpdateUserRequestDto request) {
-        return userService.updateProfile(principal.getUserId(), request);
+    @PutMapping(path = "/me", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public UserResponseDto update(@AuthenticationPrincipal User principal,
+                                  @RequestPart("data") @Valid UpdateUserRequestDto request,
+                                  @RequestPart(value = "file", required = false) MultipartFile file) {
+
+        return userService.updateProfile(principal.getUserId(), request, file);
     }
 
     @PostMapping(path = "/me/picture", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public UserResponseDto uploadPicture(@AuthenticationPrincipal User principal,
                                          @ValidImage @RequestPart("file") MultipartFile file) {
 
-        return userService.updatePicture(principal.getUserId(), FileUploads.from(file));
-    }
-
-    @DeleteMapping("/me/picture")
-    public UserResponseDto deletePicture(@AuthenticationPrincipal User principal) {
-        return userService.deletePicture(principal.getUserId());
+        return userService.updatePicture(principal.getUserId(), principal, FileUploads.from(file));
     }
 
     @DeleteMapping("/me")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteMe(@AuthenticationPrincipal User principal) {
+    public void delete(@AuthenticationPrincipal User principal) {
         userService.delete(principal.getUserId());
     }
 
@@ -68,46 +72,31 @@ public class UserController {
         return layoofService.listByAuthor(principal);
     }
 
-    @PostMapping("/me/layoofs")
-    @ResponseStatus(HttpStatus.CREATED)
-    public LayoofResponseDto createLayoof(@AuthenticationPrincipal User principal,
-                                          @RequestBody @Valid LayoofRequestDto request) {
-
-        return layoofService.create(request, principal);
-    }
-
-    @PutMapping("/me/layoofs/{layoofId}")
-    public LayoofResponseDto updateLayoof(@AuthenticationPrincipal User principal,
-                                          @PathVariable UUID layoofId,
-                                          @RequestBody @Valid LayoofRequestDto request) {
-
-        return layoofService.update(layoofId, request, principal);
-    }
-
-    @PostMapping(path = "/me/layoofs/{layoofId}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public LayoofResponseDto uploadLayoofImage(@AuthenticationPrincipal User principal,
-                                               @PathVariable UUID layoofId,
-                                               @ValidImage @RequestPart("file") MultipartFile file) {
-
-        return layoofService.updateImage(layoofId, principal, FileUploads.from(file));
-    }
-
-    @DeleteMapping("/me/layoofs/{layoofId}")
-    @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void deleteLayoof(@AuthenticationPrincipal User principal, @PathVariable UUID layoofId) {
-        layoofService.delete(layoofId, principal);
-    }
-
     @GetMapping("/search")
-    public List<SearchUserResponseDto> searchUser(@AuthenticationPrincipal User principal,
-                                                  @Valid @ModelAttribute SearchUserRequestDto request) {
+    public List<SearchUserResponseDto> searchUser(@Valid @ModelAttribute SearchUserRequestDto request,
+                                                 @AuthenticationPrincipal User principal) {
 
-        return userService.searchUser(request.name(), principal.getUserId());
+        return userService.searchUser(request.name(), principal == null ? null : principal.getUserId());
     }
 
     @GetMapping("/{userId}")
     public PublicUserResponseDto findById(@PathVariable UUID userId) {
         return userService.findPublicById(userId);
+    }
+
+    @GetMapping("/{userId}/layoofs")
+    public List<LayoofResponseDto> layoofsByUser(@PathVariable UUID userId) {
+        return layoofService.listByAuthorId(userId);
+    }
+
+    @GetMapping("/{userId}/comments")
+    public List<CommentReponseDto> commentsByUser(@PathVariable UUID userId) {
+        return commentService.listByAuthorId(userId);
+    }
+
+    @GetMapping("/{userId}/reacts")
+    public List<ReactResponseDto> reactsByUser(@PathVariable UUID userId) {
+        return reactService.listByAuthorId(userId);
     }
 
     @PostMapping("/change-password")

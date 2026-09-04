@@ -18,6 +18,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -32,6 +33,12 @@ public class CommentService {
     private final CommentRepository commentRepository;
     private final LayoofRepository layoofRepository;
     private final CommentMapper commentMapper;
+
+    @Transactional(readOnly = true)
+    public List<CommentReponseDto> listByAuthorId(UUID authorId) {
+        return commentMapper.toResponseList(
+                commentRepository.findByAuthorUserIdOrderByCreatedAtDesc(authorId));
+    }
 
     @Transactional
     public CommentReponseDto create(CommentRequestDto request, User author) {

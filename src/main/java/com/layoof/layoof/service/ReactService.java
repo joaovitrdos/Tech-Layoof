@@ -23,6 +23,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -35,6 +36,12 @@ public class ReactService {
     private final LayoofRepository layoofRepository;
     private final ReactMapper reactMapper;
     private final ReputationService reputationService;
+
+    @Transactional(readOnly = true)
+    public List<ReactResponseDto> listByAuthorId(UUID authorId) {
+        return reactMapper.toResponseList(
+                reactRepository.findByAuthorUserIdOrderByCreatedAtDesc(authorId));
+    }
 
     @Transactional
     public ReactResponseDto reactToComment(UUID commentId, ReactRequestDto request, User author) {

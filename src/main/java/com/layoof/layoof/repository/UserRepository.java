@@ -1,8 +1,9 @@
 package com.layoof.layoof.repository;
 
 import com.layoof.layoof.entity.User;
-import com.layoof.layoof.enums.AuthProvider;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -18,7 +19,17 @@ public interface UserRepository extends JpaRepository<User, UUID> {
 
     boolean existsByEmail(String email);
 
-    List<User> findByNameContainingIgnoreCaseAndUserIdNot(String name, UUID userId);
-
     Optional<User> findByLinkedinURL(String linkedinURL);
+
+    @Query(value = """
+        select * 
+        from tb_users u
+        where 
+            to_tsvector('portuguese', coalesce(u.name, ''))
+            @@ plainto_tsquery('portuguese', :name)
+        limit 20
+        """, nativeQuery = true)
+    List<User> searchByName(@Param("name") String name);
+
+
 }

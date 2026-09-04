@@ -8,6 +8,7 @@ public record PublicUserResponseDto(
         UUID userId,
         String name,
         String picture,
+        String linkedinURL,
         int confidenceScore,
         UserConfidence confidence,
         int badges

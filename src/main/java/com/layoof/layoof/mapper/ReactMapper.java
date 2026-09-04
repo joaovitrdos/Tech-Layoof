@@ -6,6 +6,8 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.ReportingPolicy;
 
+import java.util.List;
+
 @Mapper(componentModel = "spring", unmappedTargetPolicy = ReportingPolicy.IGNORE)
 public interface ReactMapper {
 
@@ -15,4 +17,6 @@ public interface ReactMapper {
     @Mapping(target = "authorName", source = "author.name")
     @Mapping(target = "authorPicture", source = "author.picture")
     ReactResponseDto toResponse(React react);
+
+    List<ReactResponseDto> toResponseList(List<React> reacts);
 }

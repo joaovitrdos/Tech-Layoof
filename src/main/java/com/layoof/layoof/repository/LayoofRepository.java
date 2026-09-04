@@ -9,6 +9,7 @@ import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -50,4 +51,17 @@ public interface LayoofRepository extends JpaRepository<Layoof, UUID> {
     List<Long> reactBalancesByAuthor(@Param("author") User author);
 
     long countByStatus(LayoofStatus status);
+
+    @Query(value = """
+            select * 
+            from tb_layoof l
+            where 
+                to_tsvector('portuguese', coalesce(l.title, ''))
+                @@ plainto_tsquery('portuguese', :title)
+            limit 20
+            """, nativeQuery = true)
+    List<Layoof> searchByTitle(@Param("title") String title);
+
+    @EntityGraph(attributePaths = {"source", "author"})
+    List<Layoof> findByLayoofIdIn(Collection<UUID> layoofIds);
 }

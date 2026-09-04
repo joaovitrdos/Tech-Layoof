@@ -24,5 +24,8 @@ public interface UserMapper {
 
     List<UserResponseDto> toResponseList(List<User> users);
 
+    @Mapping(target = "badges", source = "confidence.badges")
+    SearchUserResponseDto toSearchResponse(User user);
+
     List<SearchUserResponseDto> toSearchResponseList(List<User> users);
 }

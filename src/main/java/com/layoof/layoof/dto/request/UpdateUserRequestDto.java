@@ -12,6 +12,8 @@ public record UpdateUserRequestDto(
 
         @Size(max = 512, message = "A foto deve ter no maximo 512 caracteres")
         @Pattern(regexp = "^$|^https?://\\S+$", message = "A foto deve ser um endereco http ou https")
-        String picture
+        String picture,
+
+        String linkedinURL
 ) {
 }
